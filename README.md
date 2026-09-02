@@ -9,6 +9,23 @@ arranque. Cambiar `SEED` en `src/config.js` genera otro promontorio.
 
 ---
 
+## Publicar
+
+Es una web estática: `npm run build` deja en `dist/` todo lo que hay que subir,
+y sirve tal cual en cualquier alojamiento. No hace falta configurar la ruta —
+`vite.config.js` usa `base: './'`, así que las referencias salen relativas y la
+web funciona igual en la raíz de un dominio que en un subdirectorio.
+
+En Vercel no hay nada que preparar: detecta Vite, compila con `npm run build` y
+publica `dist/`. El único fichero de configuración es `vercel.json`, y está por
+una razón concreta: **las tipografías de `public/fuentes/` no llevan huella en
+el nombre**. Todo lo que Vite compila sale con un hash, así que puede cachearse
+para siempre sin riesgo; lo que se copia de `public/` conserva su nombre, y sin
+decirlo se queda con una caché conservadora. Son 72 kB en la ruta crítica que
+no cambian nunca — merece la pena decir que son inmutables.
+
+---
+
 ## Empezar
 
 ```bash
