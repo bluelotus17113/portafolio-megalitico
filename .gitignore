@@ -1,0 +1,21 @@
+node_modules/
+dist/
+captures/
+.img2threejs/pbr/
+.img2threejs/crops/
+.img2threejs/render-*.png
+.img2threejs/cmp-*.png
+tools/_*.mjs
+*.log
+
+# Carpeta de trabajo del pipeline de referencia: intermedios y rutas absolutas
+# de la máquina donde se generó. No hace falta para compilar ni para ejecutar.
+.img2threejs/
+
+# Fotos de referencia con las que se midieron las proporciones de los árboles.
+# Se quedan fuera porque no se necesitan para nada más que para haberlas medido
+# una vez, y su procedencia no está documentada: publicar imágenes de terceros
+# en un repositorio abierto no es un riesgo que valga la pena correr por unas
+# fotos que ya cumplieron su función. Si son propias, basta con borrar esta
+# línea.
+ref/

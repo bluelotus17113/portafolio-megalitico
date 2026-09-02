@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Atlas de hojarasca</title>
+    <style>
+      body { margin: 0; background: #6d7a5c; font: 12px ui-monospace, Menlo, monospace; color: #16211f; }
+      .row { display: flex; gap: 10px; padding: 10px; flex-wrap: wrap; }
+      figure { margin: 0; background: #55624a; padding: 6px; }
+      figcaption { padding-top: 4px; }
+      canvas { display: block; width: 340px; height: 340px; image-rendering: auto; }
+    </style>
+  </head>
+  <body>
+    <div class="row" id="row"></div>
+    <script type="module">
+      /**
+       * Vuelca el atlas de hojarasca de cada especie tal cual sale del
+       * generador, sobre el mismo verde del prado.
+       *
+       * Mirar la textura directamente es la única forma de saber si el
+       * problema está en cómo se pinta o en cómo se ilumina después. Ajustar
+       * a ojo sobre el render mezcla las dos cosas.
+       */
+      import { leafCluster } from '/src/utils/textures.js';
+      import { SPECIES } from '/src/models/Tree.js';
+
+      const row = document.getElementById('row');
+      for (const [name, p] of Object.entries(SPECIES)) {
+        const tex = leafCluster({
+          seed: 20260818 + p.leafSeed,
+          autumn: p.leafTextureAutumn,
+          shape: p.leafShape,
+          leaves: p.leaves,
+          flowerHue: p.flowerHue ?? null,
+        });
+        const fig = document.createElement('figure');
+        const c = tex.image;
+        c.style.width = '340px';
+        c.style.height = '340px';
+        fig.appendChild(c);
+        const cap = document.createElement('figcaption');
+        // Proporción real de píxeles con flor, medida sobre el propio atlas.
+        const ctx = c.getContext('2d');
+        const d = ctx.getImageData(0, 0, c.width, c.height).data;
+        let opaque = 0;
+        let magenta = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 110) continue;
+          opaque++;
+          // Flor = el rojo y el azul superan claramente al verde.
+          if (d[i] > d[i + 1] + 12 && d[i + 2] > d[i + 1] + 12) magenta++;
+        }
+        const pct = opaque ? ((magenta / opaque) * 100).toFixed(1) : '0';
+        cap.textContent = `${name} · ${p.leafShape} · flor ${pct}% de los píxeles opacos`;
+        fig.appendChild(cap);
+        row.appendChild(fig);
+      }
+      window.__ready = true;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,365 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   La puerta: dos cuadrados, PANEL e ISLA.
+
+   Cuadrados de verdad (`aspect-ratio: 1`) y no tarjetas altas: dos cuadrados
+   del mismo tamaño uno al lado del otro se leen como una elección entre
+   iguales, sin que la forma insinúe cuál es la buena. Es lo que se quiere —
+   ninguna de las dos versiones es el premio de consolación de la otra.
+
+   Va en el bundle de entrada, no en un trozo aparte: es lo primero que se
+   pinta y no puede esperar a un viaje de red.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.portada-activa,
+body.portada-activa {
+  /* Igual que en la versión ligera: `visible` y no `auto`, y el color en
+     `html`, porque el fondo de `body` se pinta después que los descendientes
+     con z-index negativo y los sepultaría. */
+  overflow: visible;
+  height: auto;
+}
+
+html.portada-activa {
+  background: #05090a;
+}
+
+body.portada-activa {
+  background: none;
+}
+
+.portada {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: clamp(20px, 4vh, 56px) var(--pad);
+  overflow-y: auto;
+  background: #05090a;
+  animation: pt-entra 0.9s var(--ease) both;
+}
+
+.portada[data-saliendo='true'] {
+  opacity: 0;
+  transform: scale(1.03);
+  transition: opacity 0.55s var(--ease), transform 0.7s var(--ease);
+  pointer-events: none;
+}
+
+@keyframes pt-entra {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── fondo ───────────────────────────────────────────────────────────────── */
+
+.pt-fondo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(100% 60% at 50% -10%, rgba(79, 230, 216, 0.09), transparent 60%),
+    linear-gradient(180deg, #0b1519 0%, #070e11 42%, #05090a 100%);
+}
+
+.pt-fondo__luz {
+  position: absolute;
+  top: -30vmax;
+  left: 50%;
+  width: 80vmax;
+  height: 80vmax;
+  margin-left: -40vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 230, 216, 0.13), transparent 60%);
+  animation: pt-respira 24s ease-in-out infinite alternate;
+}
+
+@keyframes pt-respira {
+  from { opacity: 0.4; transform: translate3d(-4vw, 0, 0); }
+  to   { opacity: 1; transform: translate3d(4vw, 3vh, 0); }
+}
+
+/* ── marco ───────────────────────────────────────────────────────────────── */
+
+.pt-marco {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  display: grid;
+  gap: clamp(28px, 5vh, 54px);
+}
+
+.pt-cab {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 4vw, 40px);
+}
+
+/* La inscripción ogham de la estela, la misma que se lee en la escena. Aquí
+   hace de sello y de línea vertical que abre la composición. */
+.pt-cab__ogham {
+  flex-shrink: 0;
+  color: var(--arcane);
+  opacity: 0.5;
+  animation: pt-graba 1.6s var(--ease) 0.2s both;
+}
+
+@keyframes pt-graba {
+  from { opacity: 0; clip-path: inset(100% 0 0 0); }
+  to   { opacity: 0.5; clip-path: inset(0 0 0 0); }
+}
+
+.pt-cab__kicker {
+  margin: 0 0 10px;
+  font-size: 0.6rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.pt-cab__nombre {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 5vw, 3.1rem);
+  line-height: 1.05;
+}
+
+.pt-cab__rol {
+  margin: 10px 0 0;
+  font-size: clamp(0.88rem, 1.8vw, 1.02rem);
+  font-weight: 300;
+  color: var(--ink-dim);
+}
+
+/* ── los dos cuadrados ───────────────────────────────────────────────────── */
+
+.pt-opciones {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(14px, 2.4vw, 26px);
+}
+
+.pt-op {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: rgba(9, 17, 21, 0.55);
+  color: var(--ink);
+  font-family: var(--sans);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.35s var(--ease), background 0.35s var(--ease),
+    transform 0.35s var(--ease);
+  animation: pt-sube 0.9s var(--ease) both;
+}
+
+.pt-op:nth-child(1) { animation-delay: 0.25s; }
+.pt-op:nth-child(2) { animation-delay: 0.38s; }
+
+@keyframes pt-sube {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pt-op:hover,
+.pt-op:focus-visible {
+  border-color: var(--acento, var(--arcane));
+  background: rgba(12, 24, 28, 0.75);
+  transform: translateY(-3px);
+  outline: none;
+}
+
+.pt-op--panel { --acento: var(--arcane); }
+.pt-op--isla  { --acento: var(--gold); }
+
+/* La lámina: el cuadrado propiamente dicho. */
+.pt-op__lamina {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: clamp(18px, 3vw, 34px);
+  border-bottom: 1px solid var(--line);
+  color: var(--acento);
+}
+
+.pt-op__pie {
+  display: grid;
+  gap: 6px;
+  padding: 18px clamp(16px, 2vw, 22px) 20px;
+}
+
+.pt-op__num {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--serif);
+  font-size: 0.64rem;
+  letter-spacing: 0.36em;
+  color: var(--acento);
+  opacity: 0.7;
+}
+
+/* «Sugerido»: lo que el visitante eligió la última vez, o lo que el equipo
+   aguanta si es la primera. Un rótulo y no un cuadrado encendido — la
+   diferencia entre recomendar y dar por hecho. */
+.pt-op__marca {
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.pt-op__nombre {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(1.2rem, 2.6vw, 1.7rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.pt-op__desc {
+  font-size: 0.8rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+
+/* ── motivo de PANEL: el mosaico de runas ────────────────────────────────── */
+
+.pt-op__runas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(8px, 1.4vw, 16px);
+  width: 100%;
+}
+
+.pt-runa {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  color: var(--arcane);
+  opacity: 0.34;
+  transition: opacity 0.45s var(--ease);
+  /* El escalonado: cada runa espera un poco más que la anterior. Encendidas a
+     la vez serían un cambio de brillo; encendidas en cascada, se lee que
+     alguien las está leyendo. */
+  transition-delay: calc(var(--i) * 26ms);
+}
+
+.pt-runa svg {
+  width: 100%;
+  height: 100%;
+}
+
+.pt-op--panel:hover .pt-runa,
+.pt-op--panel:focus-visible .pt-runa {
+  opacity: 0.95;
+}
+
+/* ── motivo de ISLA: el alzado del promontorio ───────────────────────────── */
+
+.pt-op__isla {
+  display: block;
+  width: 100%;
+  color: var(--gold);
+  opacity: 0.55;
+  transition: opacity 0.45s var(--ease), transform 0.6s var(--ease);
+}
+
+.pt-op--isla:hover .pt-op__isla,
+.pt-op--isla:focus-visible .pt-op__isla {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
+/* El amanecer sobre el horizonte, sólo al apuntar: una insinuación de que ahí
+   dentro hay un ciclo de día y no una postal fija. */
+.pt-op--isla .pt-op__lamina::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 70%;
+  /* La parada intermedia evita el canto duro que dejaba un degradado de dos
+     colores: a mitad de recorrido ya casi no queda color, así que el borde
+     superior llega a cero mucho antes que el alto de la caja. */
+  background: linear-gradient(
+    0deg,
+    rgba(242, 198, 109, 0.15),
+    rgba(242, 198, 109, 0.04) 42%,
+    transparent 78%
+  );
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+  pointer-events: none;
+}
+
+.pt-op--isla:hover .pt-op__lamina::after,
+.pt-op--isla:focus-visible .pt-op__lamina::after {
+  opacity: 1;
+}
+
+/* ── nota ────────────────────────────────────────────────────────────────── */
+
+.pt-nota {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 0.76rem;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--ink-faint);
+  animation: pt-sube 0.9s var(--ease) 0.5s both;
+}
+
+/* ── ajustes ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 620px) {
+  /* Apilados, un cuadrado entero por opción no cabe en pantalla: se quedaría
+     la segunda fuera del pliegue y la elección dejaría de ser una elección.
+     Se achata la lámina y la ficha pasa a leerse como una fila. */
+  .pt-opciones {
+    grid-template-columns: 1fr;
+  }
+
+  .pt-op__lamina {
+    aspect-ratio: 16 / 7;
+  }
+
+  .pt-cab {
+    gap: 18px;
+  }
+
+  .pt-cab__ogham svg {
+    height: 68px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portada,
+  .pt-op,
+  .pt-nota,
+  .pt-cab__ogham,
+  .pt-fondo__luz {
+    animation: none;
+  }
+
+  .pt-cab__ogham { opacity: 0.5; }
+
+  .pt-op:hover,
+  .pt-op:focus-visible {
+    transform: none;
+  }
+
+  .pt-op--isla:hover .pt-op__isla {
+    transform: none;
+  }
+}

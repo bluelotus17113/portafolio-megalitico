@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Banco de pruebas · árboles</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #8fa6ad; overflow: hidden; }
+      canvas { display: block; }
+      #hud {
+        position: fixed; left: 12px; bottom: 12px;
+        font: 12px/1.5 ui-monospace, Menlo, monospace;
+        color: #16211f; background: rgba(255,255,255,0.7);
+        padding: 8px 12px; border-radius: 6px; white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <script type="module">
+      /**
+       * Banco de pruebas del arbolado.
+       *
+       * Renderiza una fila de árboles sobre un suelo neutro y con la luz de la
+       * escena real. Sirve para ajustar la silueta y el tamaño de la hoja sin
+       * tener que reconstruir el promontorio entero en cada intento.
+       *
+       * Solo existe en desarrollo: `vite build` únicamente empaqueta index.html.
+       */
+      import * as THREE from 'three';
+      import { createTree, barkMaterial, leafMaterial, SPECIES } from '/src/models/Tree.js';
+      import { tickMaterials } from '/src/vfx/materials.js';
+      import { PALETTE } from '/src/config.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.18;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x9fb6c0);
+
+      const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 600);
+
+      // Misma luz que el promontorio, para juzgar el árbol en su contexto.
+      const sunDir = new THREE.Vector3(0.48, 0.46, -0.75).normalize();
+      const sun = new THREE.DirectionalLight(PALETTE.sunColor, 3.3);
+      sun.position.copy(sunDir).multiplyScalar(90);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.left = -40;
+      sun.shadow.camera.right = 40;
+      sun.shadow.camera.top = 40;
+      sun.shadow.camera.bottom = -40;
+      sun.shadow.camera.far = 220;
+      sun.shadow.normalBias = 0.3;
+      scene.add(sun, sun.target);
+      scene.add(new THREE.HemisphereLight(PALETTE.skyHorizon, 0x64604a, 1.35));
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(200, 200),
+        new THREE.MeshStandardMaterial({ color: 0x5f7043, roughness: 1 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Referencia de escala: un menhir de 8 m, como los del círculo.
+      const ref = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 8, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0xc2bdab, roughness: 0.95 })
+      );
+      ref.position.set(-16, 4, 0);
+      ref.castShadow = true;
+      scene.add(ref);
+
+      const hudLines = [];
+      const species = ['arbusto', 'brezo', 'brezo', 'helecho', 'helecho'];
+      const seeds = [311, 337, 373, 401, 419];
+      let maxH = 0;
+      species.forEach((sp, i) => {
+        const tree = createTree({ species: sp, seed: 20260818 + seeds[i] });
+        maxH = Math.max(maxH, tree.height);
+        const trunk = new THREE.Mesh(tree.trunk, barkMaterial());
+        const canopy = new THREE.Mesh(tree.canopy, leafMaterial(sp));
+        trunk.castShadow = canopy.castShadow = true;
+        trunk.receiveShadow = canopy.receiveShadow = true;
+        const g = new THREE.Group();
+        g.add(trunk, canopy);
+        g.position.x = -4 + i * (sp === 'carballo' ? 14 : 5);
+        scene.add(g);
+        // Relación ancho/alto de la copa: es la cifra que mide la referencia
+        // (1.17) y la que había que corregir.
+        const box = new THREE.Box3().setFromObject(g);
+        const size = box.getSize(new THREE.Vector3());
+        const ratio = size.x / Math.max(size.y, 1e-6);
+        hudLines.push(
+          `${sp.padEnd(9)} alt ${tree.height.toFixed(1)} m  ancho ${size.x.toFixed(1)} m  ` +
+          `ancho/alto ${ratio.toFixed(2)}${sp === 'carballo' ? '  (ref 1.17)' : ''}`
+        );
+      });
+
+      for (const sp of new Set(species)) {
+        leafMaterial(sp).userData.uniforms.uCanopyTop.value = SPECIES[sp].height[1] * 1.1;
+      }
+
+      camera.position.set(8, 4.2, 14);
+      camera.lookAt(new THREE.Vector3(8, 1.2, 0));
+
+      document.getElementById('hud').textContent = hudLines.join('\n');
+
+      let last = performance.now();
+      renderer.setAnimationLoop(() => {
+        const now = performance.now();
+        tickMaterials(Math.min((now - last) / 1000, 0.05));
+        last = now;
+        renderer.render(scene, camera);
+      });
+
+      addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+    </script>
+  </body>
+</html>

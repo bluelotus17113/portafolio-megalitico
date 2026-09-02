@@ -1,0 +1,1086 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   La versión ligera.
+
+   Hereda las variables y algunos componentes de `ui/base.css` —medidores,
+   canales, formulario, etiquetas— porque allí están declarados sueltos y no
+   dentro del panel. Aquí sólo se escribe lo que la escena no necesitaba: una
+   página que se desplaza.
+
+   La idea de la que sale todo lo demás: **una retícula editorial de dos
+   columnas**. A la izquierda, estrecha y fija, los datos de la sección — el
+   número, el título, el subtítulo, la línea de ambientación. A la derecha, el
+   contenido. Y una sola línea vertical que baja por toda la página y de la que
+   cuelgan las cinco secciones.
+
+   No es decoración: es lo que convierte cinco bloques apilados en un documento.
+   Con todo centrado en una columna, el título de «Proyectos» pasa de largo en
+   la segunda pantalla y las siete restantes se leen sin saber ya dónde se está.
+   Fijando los datos de la sección, el título deja de ser un rótulo que ocurrió
+   y pasa a ser el encabezado de lo que se está mirando.
+
+   Misma paleta y misma tipografía que la interfaz del promontorio: es la otra
+   cara del mismo portafolio, no un sucedáneo.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ligero {
+  --ancho: 1180px;
+  /* Ancho del raíl de datos. 250 px da para dos líneas de título en Cinzel sin
+     partir «Trayectoria», que es la palabra más larga de las cinco. */
+  --rail: 250px;
+  --calle: clamp(32px, 4.6vw, 76px);
+  --alto-cab: 58px;
+  display: block;
+  min-height: 100%;
+}
+
+/* La escena bloquea el desplazamiento del documento —ocupa la ventana entera y
+   el arrastre gira la cámara—, así que aquí hay que devolvérselo. A los dos
+   elementos, porque `base.css` se lo quita a los dos.
+                                                                       ⚠
+   Y `visible`, no `auto`. Un `overflow` que no sea `visible` convierte al
+   elemento en el contenedor de desplazamiento de todo lo que lleva dentro, y
+   `position: sticky` se ancla a ese contenedor. Con `auto` aquí, la cabecera
+   se anclaba a `body` —que no desplaza nada, desplaza la ventana— y se iba
+   hacia arriba con el resto del contenido. La página se leía igual: sólo se
+   nota si se mira el borde superior después de bajar. */
+html.ligero-activo,
+body.ligero-activo {
+  overflow: visible;
+  height: auto;
+}
+
+/* El color de base va en `html`, y `body` se queda SIN fondo.
+                                                                       ⚠
+   No es una manía: es la única forma de que se vean las capas de abajo. El
+   orden de pintado dentro del contexto de apilamiento raíz coloca los
+   descendientes con `z-index` negativo ANTES que el fondo de los elementos de
+   bloque en flujo — y `body` es uno de ellos. Con `background` en `body`, sus
+   propios `::before` y `::after` y todo lo que estuviera en negativo quedaban
+   sepultados debajo.
+
+   Y no da ningún error: la página se ve entera, sólo que lisa. El degradado y
+   el grano estuvieron escritos y sin dibujarse hasta que se midió el color de
+   un píxel y salió el negro plano en vez del tono que tocaba. */
+html.ligero-activo {
+  background: #05090a;
+}
+
+body.ligero-activo {
+  background: none;
+}
+
+/* ── El fondo, en dos capas fijas ───────────────────────────────────────────
+   Las dos van en pseudoelementos fijos y no en `body` con
+   `background-attachment: fixed`, que obliga a repintar el fondo entero en
+   cada fotograma del desplazamiento — y esta versión existe precisamente para
+   el equipo donde eso se nota. Una capa fija con su propio plano se dibuja una
+   vez y luego sólo se recoloca. */
+
+/* Capa 1: profundidad. Un degradado vertical de arriba abajo, más claro en la
+   cabecera y cerrándose hacia el pie, con el resplandor arcano asomando por el
+   borde superior. Esta no se mueve nunca: es el suelo sobre el que pasan las
+   demás.
+
+   El resplandor se queda aquí, a media intensidad, y no se lo lleva entero la
+   capa que se mueve. Llevándoselo, la página tenía momentos del ciclo en los
+   que quedaba más apagada que antes de existir la animación: el movimiento se
+   pagaba con lo que ya estaba bien. Lo que se mueve SUMA sobre esto. */
+body.ligero-activo::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 62% at 50% -14%, rgba(79, 230, 216, 0.07), transparent 58%),
+    linear-gradient(180deg, #0b1519 0%, #070e11 38%, #05090a 100%);
+}
+
+/* Capa 3: grano. Va ENCIMA de lo que se mueve, y por eso funciona: un
+   degradado a la deriva, solo, se lee como plástico. Pasando por debajo de una
+   trama fija de ruido, se lee como luz cambiando sobre una superficie.
+   El grano es lo único que no se mueve además del degradado de base.
+
+   Un negro plano de pantalla se lee como «sin terminar»; en papel nunca hay un
+   plano perfecto, y el ojo lo echa de menos aunque no sepa nombrarlo. Es un
+   mosaico de ruido de 160 px generado por el propio navegador —sin pedir
+   ningún fichero— repetido al 4 % de opacidad. */
+body.ligero-activo::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* ── Capa 2: lo que se mueve ────────────────────────────────────────────────
+
+   Tres capas y tres reglas que no se negocian, porque esta es la versión para
+   el equipo que no puede con la escena:
+
+   1. Sólo `transform` y `opacity`. Son las dos únicas propiedades que el
+      navegador resuelve componiendo capas ya dibujadas, sin volver a calcular
+      ni una posición ni un píxel. Animar `background-position`, `filter` o el
+      color del degradado obligaría a repintar la ventana entera sesenta veces
+      por segundo — el fondo saldría precioso y la página iría a tirones justo
+      donde no puede permitírselo.
+
+   2. Ni un `filter: blur()`. La suavidad la da el propio degradado radial, que
+      se dibuja UNA vez; desenfocar una capa del tamaño de la ventana en cada
+      fotograma cuesta más que todo lo demás junto.
+
+   3. Períodos distintos y primos entre sí: 71 s, 97 s y 53 s. Con duraciones
+      parecidas las tres capas vuelven a coincidir cada poco y el bucle se ve;
+      así el conjunto tarda casi una hora en repetirse y se lee como algo que
+      pasa, no como algo que da vueltas.
+
+   Y todo esto se apaga entero con `prefers-reduced-motion`. */
+.lg-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Lo que hace visible el movimiento es el BRILLO, no el desplazamiento.
+   El primer intento sólo desplazaba, y no se veía: un resplandor de mil
+   píxeles de diámetro y caída suave que se corre doscientos apenas cambia la
+   luz de ningún punto de la pantalla — medido con dos capturas del mismo
+   ciclo, la diferencia media entre ellas era de 0,010 sobre 765. El ojo
+   detecta muchísimo antes que algo se apaga y se enciende que un
+   deslizamiento lento. Así que el trabajo lo lleva la opacidad y la deriva
+   pone la variación, que es lo que impide que se lea como un latido. */
+.lg-fondo__luz {
+  position: absolute;
+  display: block;
+  width: 66vmax;
+  height: 66vmax;
+  border-radius: 50%;
+}
+
+/* El resplandor arcano, el que ya asomaba por el borde superior. Ahora
+   respira. Puesto de forma que su núcleo cae DENTRO de la pantalla: con el
+   centro fuera sólo se veía la cola del degradado, donde ya no queda nada
+   que encender ni que apagar. */
+.lg-fondo__luz--a {
+  top: -26vmax;
+  left: -14vmax;
+  background: radial-gradient(circle, rgba(79, 230, 216, 0.2), transparent 60%);
+  animation: lg-deriva-a 71s ease-in-out infinite alternate;
+}
+
+/* El de brasa, más pequeño y más lento: sugiere el fuego del altar sin
+   dibujarlo. */
+.lg-fondo__luz--b {
+  top: -18vmax;
+  right: -20vmax;
+  width: 52vmax;
+  height: 52vmax;
+  background: radial-gradient(circle, rgba(242, 198, 109, 0.12), transparent 62%);
+  animation: lg-deriva-b 97s ease-in-out infinite alternate;
+}
+
+@keyframes lg-deriva-a {
+  from { transform: translate3d(-5vw, -3vh, 0); opacity: 0.35; }
+  to   { transform: translate3d(16vw, 9vh, 0); opacity: 1; }
+}
+
+@keyframes lg-deriva-b {
+  from { transform: translate3d(4vw, 5vh, 0); opacity: 1; }
+  to   { transform: translate3d(-12vw, -4vh, 0); opacity: 0.3; }
+}
+
+/* Las motas, que ascienden.
+   Son las luciérnagas del promontorio traídas aquí. Un solo elemento con un
+   mosaico de puntos repetido, no veinte elementos animados: una capa que se
+   compone contra veinte que componer. El bucle es exacto porque el
+   desplazamiento es justo el alto del mosaico —320 px—, así que al terminar la
+   trama cae encima de sí misma y no hay salto que disimular. La caja sobresale
+   320 px por arriba y por abajo para que el viaje no descubra un borde. */
+.lg-fondo__motas {
+  position: absolute;
+  inset: -460px 0;
+  display: block;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='460' height='460'%3E%3Cg fill='%234fe6d8'%3E%3Ccircle cx='54' cy='68' r='1.2' opacity='.7'/%3E%3Ccircle cx='311' cy='126' r='1' opacity='.5'/%3E%3Ccircle cx='176' cy='249' r='1.3' opacity='.6'/%3E%3Ccircle cx='412' cy='331' r='.9' opacity='.45'/%3E%3Ccircle cx='88' cy='398' r='1.1' opacity='.55'/%3E%3C/g%3E%3Cg fill='%23f2c66d'%3E%3Ccircle cx='247' cy='42' r='1' opacity='.45'/%3E%3Ccircle cx='131' cy='183' r='.9' opacity='.35'/%3E%3C/g%3E%3C/svg%3E");
+  animation: lg-ascenso 53s linear infinite;
+}
+
+@keyframes lg-ascenso {
+  to { transform: translate3d(0, -460px, 0); }
+}
+
+.lg-aviso {
+  margin: 0;
+  padding: 12px var(--pad);
+  background: rgba(255, 138, 122, 0.12);
+  border-bottom: 1px solid rgba(255, 138, 122, 0.3);
+  color: #ffb3a7;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ────────────────────────────────────────────────────────────── cabecera */
+
+.lg-cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: var(--alto-cab);
+  padding: 0 var(--pad);
+  background: rgba(7, 13, 16, 0.82);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border-bottom: 1px solid var(--line);
+}
+
+.lg-marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--arcane);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.lg-marca__glifo {
+  display: grid;
+  place-items: center;
+  opacity: 0.9;
+}
+
+.lg-marca__nombre {
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.lg-nav {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lg-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.lg-nav__enlace {
+  position: relative;
+  padding: 8px 13px;
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.25s var(--ease);
+}
+
+.lg-nav__enlace:hover {
+  color: var(--ink-dim);
+}
+
+/* La sección activa se marca con una línea bajo el texto, no con una píldora
+   de fondo: en una barra de cinco enlaces, cinco cápsulas potenciales pesan
+   más que la marca que se quiere dar. */
+.lg-nav__enlace::after {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 2px;
+  height: 1px;
+  background: var(--arcane);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 0.3s var(--ease);
+}
+
+.lg-nav__enlace[data-activo='true'] {
+  color: var(--ink);
+}
+
+.lg-nav__enlace[data-activo='true']::after {
+  transform: scaleX(1);
+}
+
+.lg-cabecera__modo {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease),
+    background 0.25s var(--ease);
+}
+
+.lg-cabecera__modo:hover {
+  border-color: var(--arcane);
+  color: var(--arcane);
+  background: var(--arcane-dim);
+}
+
+/* Un punto que respira: insinúa que al otro lado hay algo vivo. */
+.lg-punto {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--arcane);
+  box-shadow: 0 0 8px var(--arcane);
+  animation: lg-latido 2.6s ease-in-out infinite;
+}
+
+@keyframes lg-latido {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* Cuánto se lleva leído, en el filo de la cabecera.
+   Sin una línea de JavaScript: se anima contra el desplazamiento del propio
+   documento. Donde el navegador no conozca `scroll()` sencillamente no se
+   dibuja, que es exactamente la degradación que se quiere — un adorno que no
+   se echa de menos. */
+.lg-progreso {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--arcane), rgba(242, 198, 109, 0.9));
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+@supports (animation-timeline: scroll()) {
+  .lg-progreso {
+    animation: lg-avance linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+
+@keyframes lg-avance {
+  to { transform: scaleX(1); }
+}
+
+/* ──────────────────────────────────────────────────────────────── cuerpo */
+
+.lg-cuerpo {
+  max-width: var(--ancho);
+  margin: 0 auto;
+  padding: 0 var(--pad);
+}
+
+.lg-kicker {
+  margin: 0 0 18px;
+  font-size: 0.62rem;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ─────────────────────────────────────────────────────────────── portada */
+
+.lg-portada {
+  display: grid;
+  gap: clamp(48px, 8vh, 92px);
+  padding: clamp(72px, 15vh, 168px) 0 clamp(56px, 9vh, 104px);
+}
+
+/* Sin tope de ancho aquí: la medida se le pone al párrafo, que es lo que se
+   lee en renglones. Puesta en el bloque entero, partía el nombre en dos líneas
+   y apilaba los dos botones uno encima de otro. */
+.lg-portada__texto {
+  max-width: none;
+}
+
+.lg-portada__nombre {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(2.5rem, 7.4vw, 5rem);
+  line-height: 1.02;
+  letter-spacing: 0.005em;
+}
+
+.lg-portada__rol {
+  margin: 20px 0 0;
+  max-width: 44ch;
+  font-size: clamp(1rem, 2.1vw, 1.22rem);
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--ink-dim);
+}
+
+.lg-portada__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 38px;
+}
+
+.lg-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--arcane);
+  color: #052024;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.lg-boton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 26px rgba(79, 230, 216, 0.22);
+}
+
+.lg-boton--linea {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.lg-boton--linea:hover {
+  border-color: var(--arcane);
+  color: var(--arcane);
+  box-shadow: none;
+}
+
+/* El intento contra pronóstico: visible para quien lo busque, sin prometer
+   nada a quien sólo está leyendo. */
+.lg-boton--tenue {
+  color: var(--ink-faint);
+  border-color: var(--line);
+  font-size: 0.74rem;
+}
+
+/* Las fichas de datos, separadas por filetes y sin caja alrededor. La caja
+   las convertía en una tabla; los filetes las dejan en lo que son, cuatro
+   apuntes al pie de la portada. */
+.lg-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.lg-dato {
+  padding: 20px 24px 0 0;
+}
+
+.lg-dato + .lg-dato {
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+}
+
+.lg-dato dt {
+  margin: 0 0 8px;
+  font-size: 0.58rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.lg-dato dd {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+/* ───────────────────────────────────────────────────────────── secciones */
+
+/* El envoltorio lleva la línea vertical continua. Va aquí y no en el `main`
+   porque la portada es a ancho completo y la cruzaría. */
+.lg-secciones {
+  position: relative;
+}
+
+.lg-secciones::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--rail) + var(--calle) / 2);
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--line) 4%,
+    var(--line) 94%,
+    transparent
+  );
+}
+
+.lg-seccion {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  gap: var(--calle);
+  align-items: start;
+  padding: clamp(72px, 12vh, 128px) 0;
+  scroll-margin-top: calc(var(--alto-cab) + 24px);
+
+  /* Los componentes heredados de la interfaz se tiñen por `--panel-accent`.
+     Enganchándolo aquí al color que `config.js` da al monumento, los medidores
+     y los canales toman el mismo tono que su piedra en la escena. */
+  --panel-accent: var(--acento);
+}
+
+.lg-seccion + .lg-seccion {
+  border-top: 1px solid var(--line);
+}
+
+.lg-seccion__cab {
+  position: sticky;
+  top: calc(var(--alto-cab) + 48px);
+}
+
+/* El nombre de la sección, grabado en ogham sobre la línea vertical.
+   Se apoya justo encima de la arista y arranca a la altura del título, que es
+   donde empieza lo que nombra. */
+.lg-seccion__ogham {
+  position: absolute;
+  top: clamp(72px, 12vh, 128px);
+  left: calc(var(--rail) + var(--calle) / 2);
+  transform: translateX(-50%);
+  color: var(--acento);
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+/* El número, la runa de la sección y un filete: el recurso editorial de toda
+   la vida para decir «esto empieza aquí» sin gritarlo. */
+.lg-seccion__num {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+  font-family: var(--serif);
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  color: var(--acento);
+}
+
+.lg-seccion__num::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--acento), transparent);
+  opacity: 0.5;
+}
+
+/* La runa va al final del filete, como el sello al pie de una línea grabada.
+   `order` la lleva detrás del pseudoelemento sin tocar el marcado. */
+.lg-seccion__runa {
+  order: 2;
+  display: grid;
+  place-items: center;
+  opacity: 0.75;
+}
+
+.lg-seccion__titulo {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.lg-seccion__sub {
+  margin: 10px 0 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.lg-seccion__lore {
+  margin: 26px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 0.84rem;
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--ink-dim);
+}
+
+.lg-prosa {
+  max-width: 64ch;
+}
+
+.lg-prosa p {
+  margin: 0 0 20px;
+  font-size: 1.02rem;
+  font-weight: 300;
+  line-height: 1.85;
+  color: var(--ink-dim);
+}
+
+.lg-prosa p:first-child {
+  color: var(--ink);
+}
+
+/* ───────────────────────────────────────────────────────────── proyectos */
+
+.lg-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Sin caja por ficha y sin hueco entre ellas: las separa un filete de un
+   píxel. Nueve tarjetas flotando con su borde y su sombra parecen un catálogo
+   de plantilla; nueve celdas de una misma retícula parecen un índice.
+                                                                       ⚠
+   El filete lo pone cada ficha con `box-shadow`, no la lista con un fondo por
+   debajo. Con el fondo en la lista, la última fila —nueve fichas en dos
+   columnas— dejaba la celda sobrante pintada de gris macizo: un rectángulo
+   vacío que parece un error de carga. Las sombras de las fichas contiguas se
+   solapan en el píxel de separación y dan la misma línea limpia, pero donde no
+   hay ficha no hay nada que dibujar. */
+.lg-ficha {
+  display: flex;
+  flex-direction: column;
+  background: #070e11;
+  box-shadow: 0 0 0 1px var(--line);
+  transition: background 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+
+.lg-ficha:hover {
+  box-shadow: 0 0 0 1px var(--line-strong);
+  position: relative;
+  z-index: 1;
+}
+
+.lg-ficha:hover {
+  background: #0a1519;
+}
+
+/* 3:2, la proporción con la que se dibuja la lámina.
+   Antes era 16:10 y el fondo se recortaba con `cover`. Ahora que el lienzo se
+   cuelga como elemento, recortar exigiría o deformarlo o taparlo: cuadrando la
+   caja con el dibujo no hace falta ninguna de las dos cosas. */
+.lg-ficha__lamina {
+  aspect-ratio: 3 / 2;
+  background: #0a1216;
+  filter: saturate(0.86) brightness(0.92);
+  transition: filter 0.4s var(--ease);
+}
+
+.lg-ficha__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lg-ficha:hover .lg-ficha__lamina {
+  filter: saturate(1) brightness(1);
+}
+
+.lg-ficha__cuerpo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 22px 22px 24px;
+}
+
+.lg-ficha__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.lg-ficha__indice {
+  font-family: var(--serif);
+  letter-spacing: 0.08em;
+  color: var(--acento);
+}
+
+.lg-ficha__ano {
+  margin-left: auto;
+}
+
+.lg-ficha__titulo {
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
+.lg-ficha__resumen {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--ink-dim);
+}
+
+.lg-ficha .tags {
+  margin-top: 16px;
+}
+
+.lg-ficha__enlace {
+  margin-top: auto;
+  padding-top: 18px;
+  color: var(--acento);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+.lg-ficha__enlace:hover {
+  text-decoration: underline;
+}
+
+/* ──────────────────────────────────────────────────────────── habilidades */
+
+.lg-familias {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: clamp(28px, 4vw, 52px);
+}
+
+.lg-familia__titulo {
+  margin: 0 0 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ─────────────────────────────────────────────────────────── trayectoria */
+
+/* El sendero de mojones, al fondo de su sección.
+   Ocupa la banda derecha, que es la única parte que está vacía: el detalle de
+   cada hito tiene la medida topada y deja un palmo libre. Se difumina arriba y
+   abajo con una máscara para que no empiece ni acabe de un tajo. */
+.lg-sendero {
+  position: absolute;
+  top: clamp(72px, 12vh, 128px);
+  bottom: clamp(72px, 12vh, 128px);
+  right: 0;
+  width: min(260px, 30%);
+  color: var(--acento);
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+
+  /* «Del fondo hacia el frente»: entra ligeramente encogido y por debajo, y
+     avanza hasta su sitio. Sólo `opacity` y `transform`, que el navegador
+     resuelve componiendo. */
+  opacity: 0;
+  transform: translateY(26px) scale(0.94);
+  transition: opacity 1.4s var(--ease), transform 1.8s var(--ease);
+}
+
+.lg-sendero[data-visto] {
+  opacity: 0.5;
+  transform: none;
+}
+
+.lg-sendero svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Las orillas ya están cuando el visitante llega: son el terreno, no el
+   viaje. Muy tenues — si compitieran con la vereda dejaría de haber una vereda
+   y habría tres rayas. */
+.lg-sendero__orilla {
+  stroke-width: 1;
+  opacity: 0.3;
+}
+
+/* La vereda se traza sola. Es un repintado, no una composición —de ahí que sea
+   de UNA vez y no un bucle—: un trazo fino de 1 px durante dos segundos, que
+   es un coste que se paga al llegar y no en cada fotograma para siempre. */
+.lg-sendero__vereda {
+  stroke-width: 1.4;
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  opacity: 0.95;
+}
+
+.lg-sendero[data-visto] .lg-sendero__vereda {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 2.2s cubic-bezier(0.32, 0.72, 0.28, 1) 0.15s;
+}
+
+/* Los mojones aparecen detrás del trazo, en escalera, como si los fuera
+   dejando el camino a su paso. */
+.lg-sendero__mojon {
+  stroke-width: 1.6;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleX(0.2);
+}
+
+.lg-sendero[data-visto] .lg-sendero__mojon {
+  opacity: 0.9;
+  transform: none;
+  transition: opacity 0.7s var(--ease), transform 0.9s var(--ease);
+  /* El primero es el de arriba —el presente—, y el camino se traza de abajo
+     arriba: por eso el retardo va al revés del índice. */
+  transition-delay: calc(1.9s - var(--i) * 0.28s);
+}
+
+.lg-hitos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Fecha a la izquierda, qué pasó a la derecha: se lee como se lee un
+   currículo. El punto va sobre el filete que las separa. */
+.lg-hito {
+  display: grid;
+  grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+  padding: 26px 0;
+  border-top: 1px solid var(--line);
+}
+
+.lg-hito:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.lg-hito__periodo {
+  margin: 0;
+  padding-top: 3px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--acento);
+  white-space: nowrap;
+}
+
+.lg-hito__puesto {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.14rem;
+  letter-spacing: 0.01em;
+}
+
+.lg-hito__org {
+  margin: 5px 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.lg-hito__detalle {
+  margin: 12px 0 0;
+  max-width: 62ch;
+  font-size: 0.92rem;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--ink-dim);
+}
+
+/* ────────────────────────────────────────────────────────────── contacto */
+
+.lg-contacto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(32px, 5vw, 56px);
+  align-items: start;
+}
+
+/* Los canales sí se reutilizan del panel, pero su relleno no.
+   En la escena esa lista va sobre el vidrio oscuro del panel, y el fondo de
+   cada fila la despega de él. Aquí, sobre la página, ese mismo relleno se lee
+   como una losa gris pegada en medio de una composición que en todo lo demás
+   se sostiene con filetes. Se le quita el fondo y se deja la separación. */
+.lg-contacto .channels {
+  margin-top: 26px;
+  gap: 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.lg-contacto .channels__link {
+  padding: 16px 0;
+  background: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.lg-contacto .channels__link:not([aria-disabled='true']):hover {
+  background: none;
+  padding-left: 8px;
+  color: var(--acento);
+}
+
+/* ─────────────────────────────────────────────────────────────────── pie */
+
+.lg-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--ancho);
+  margin: 0 auto;
+  padding: 36px var(--pad) 64px;
+  border-top: 1px solid var(--line);
+}
+
+.lg-pie p {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+}
+
+/* ─────────────────────────────────────────────────────────────── ajustes */
+
+/* Por debajo de este ancho el raíl no cabe: 250 px de datos más 270 de ficha
+   más la calle se pasan de los 900, y mantenerlo dejaría una columna de
+   contenido más estrecha que el propio raíl. Se apila. */
+@media (max-width: 900px) {
+  /* Sin raíl no hay calle, y sin calle no hay arista sobre la que grabar. Y
+     apilado no sobra la banda derecha por la que iba el sendero: dibujarlo
+     ahí sería cruzarlo por detrás del texto. */
+  .lg-secciones::before,
+  .lg-seccion__ogham,
+  .lg-sendero {
+    display: none;
+  }
+
+  .lg-seccion {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+
+  .lg-seccion__cab {
+    position: static;
+    max-width: 62ch;
+  }
+
+  .lg-seccion__num::after {
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 720px) {
+  .lg-cabecera {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .lg-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .lg-cabecera__modo {
+    margin-left: auto;
+  }
+
+  /* Apiladas, los filetes verticales no separan nada: pasan a horizontales. */
+  .lg-dato + .lg-dato {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .lg-dato {
+    padding-right: 0;
+  }
+
+  .lg-hito {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* El fondo se queda quieto donde empieza. No se esconde: la composición
+     sigue siendo la misma, sólo deja de moverse. */
+  .lg-fondo__luz,
+  .lg-fondo__motas,
+  .lg-punto {
+    animation: none;
+  }
+
+  /* El sendero se enseña dibujado, sin trazarse. Lo que sobra es el
+     movimiento, no el dibujo. */
+  .lg-sendero,
+  .lg-sendero__vereda,
+  .lg-sendero__mojon {
+    transition: none;
+  }
+
+  .lg-sendero {
+    opacity: 0.5;
+    transform: none;
+  }
+
+  .lg-sendero__vereda {
+    stroke-dashoffset: 0;
+  }
+
+  .lg-sendero__mojon {
+    opacity: 0.9;
+    transform: none;
+  }
+
+  .lg-punto {
+    opacity: 0.9;
+  }
+
+  .lg-boton:hover,
+  .lg-ficha:hover {
+    transform: none;
+  }
+}

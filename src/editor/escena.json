@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "objetos": {
+    "piedras-runadas/piedra-runada#0": {
+      "pos": [
+        -66.6298,
+        37.3398,
+        66.3952
+      ],
+      "rot": [
+        0,
+        2.5902,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        -69.6298,
+        37.6807,
+        68.3952
+      ]
+    },
+    "caminos/caminos": {
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    },
+    "escalinata/escalinata-entrega-plaza-muro-b": {
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    },
+    "escalinata/escalinata-entrega-plaza": {
+      "pos": [
+        0,
+        -30.3229,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    },
+    "escalinata/escalinata-entrega-skills": {
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    },
+    "shrine-skills/dais": {
+      "pos": [
+        0.6368,
+        0,
+        -2.0807
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    },
+    "escalinata/escalinata-entrega-skills-muro-b": {
+      "pos": [
+        0,
+        -0.0417,
+        0
+      ],
+      "rot": [
+        0.0698,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    },
+    "shrine-experience/beacon": {
+      "pos": [
+        14.9953,
+        0.3,
+        11.919
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0.3,
+        0
+      ]
+    },
+    "shrine-experience": {
+      "pos": [
+        -34,
+        61.1251,
+        -34
+      ],
+      "rot": [
+        0,
+        -2.47,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        -34,
+        61.1251,
+        -34
+      ]
+    },
+    "piedras-runadas/piedra-runada#4/piedra-runada-bloque": {
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "esc": [
+        1,
+        1,
+        1
+      ],
+      "pos0": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "materiales": {
+    "estrado-losa": {
+      "color": "#deddda"
+    }
+  }
+}

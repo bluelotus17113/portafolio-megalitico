@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Banco de pruebas · piedra</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #8fa6ad; overflow: hidden; }
+      canvas { display: block; }
+      #hud {
+        position: fixed; left: 12px; bottom: 12px;
+        font: 12px/1.5 ui-monospace, Menlo, monospace;
+        color: #16211f; background: rgba(255,255,255,0.72);
+        padding: 8px 12px; border-radius: 6px; white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <script type="module">
+      /**
+       * Banco de pruebas de la cantería.
+       *
+       * Pone en fila las piezas que se juzgan juntas — un ortostato del círculo,
+       * un pie de trilito con su dintel, una tapa de dolmen y un canto rodado —
+       * sobre suelo neutro y con la luz de la escena real.
+       *
+       * Existe porque el defecto que había que corregir era de SILUETA, y la
+       * silueta no se ve en la escena entera: los menhires del círculo salen a
+       * contraluz contra un prado saturado y con la lámina del proyecto encima.
+       * Aquí se ve el perfil recortado contra un fondo plano, que es donde se
+       * nota si el remate es recto o acaba en punta.
+       *
+       * Solo existe en desarrollo: `vite build` únicamente empaqueta index.html.
+       *
+       *   node tools/shoot-stones.mjs
+       */
+      import * as THREE from 'three';
+      import { createStone, createSlab, createBoulder, stoneMesh } from '/src/models/StoneFactory.js';
+      import { createTrilithon, createDolmen } from '/src/models/Megaliths.js';
+      import { tickMaterials } from '/src/vfx/materials.js';
+      import { PALETTE, SEED } from '/src/config.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.toneMapping = THREE.LinearToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x9fb6c0);
+
+      const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.5, 600);
+
+      const sunDir = new THREE.Vector3(0.48, 0.46, -0.75).normalize();
+      const sun = new THREE.DirectionalLight(PALETTE.sunColor, 3.3);
+      sun.position.copy(sunDir).multiplyScalar(90);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.left = -40;
+      sun.shadow.camera.right = 40;
+      sun.shadow.camera.top = 40;
+      sun.shadow.camera.bottom = -40;
+      sun.shadow.camera.far = 220;
+      sun.shadow.normalBias = 0.3;
+      scene.add(sun, sun.target);
+      scene.add(new THREE.HemisphereLight(PALETTE.skyHorizon, 0x64604a, 1.35));
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(300, 300),
+        new THREE.MeshStandardMaterial({ color: 0x6d7a5c, roughness: 1 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const hud = [];
+      let tris = 0;
+      const cuenta = (obj) => {
+        obj.traverse((o) => { if (o.isMesh && o.geometry.index) tris += o.geometry.index.count / 3; });
+        return obj;
+      };
+      const plantar = (obj, x) => { obj.position.x = x; scene.add(cuenta(obj)); return obj; };
+
+      // 1 — Ortostato del círculo de proyectos, con los mismos números.
+      const menhir = stoneMesh(
+        createStone({
+          width: 3.2, height: 10.2, depth: 2.0, seed: SEED + 600,
+          detail: 3, roundness: 0.26, erosion: 0.13, taper: 0.09,
+        }),
+        { name: 'menhir' }
+      );
+      plantar(menhir, -17);
+
+      // 2 — Trilito: dos pies y un dintel. Es la prueba de que peguen entre sí.
+      plantar(createTrilithon({ height: 9.5, gap: 4.2, postWidth: 2.2, postDepth: 1.6, seed: SEED + 71 }), -6);
+
+      // 3 — Dolmen: la tapa es la pieza que salía en forma de lenteja.
+      plantar(createDolmen({ seed: SEED + 5 }), 10);
+
+      // 4 — Canto rodado, para ver que sigue siendo redondo y no una caja.
+      const canto = stoneMesh(createBoulder({ radius: 1.4, seed: SEED + 900, detail: 3 }), { name: 'canto' });
+      plantar(canto, 20);
+
+      // 5 — Losa suelta de pie, que es el encuadre de la referencia.
+      const losa = stoneMesh(createSlab({ width: 3.0, height: 0.9, depth: 2.2, seed: SEED + 31 }), { name: 'losa' });
+      plantar(losa, 24.5);
+
+      for (const [nombre, obj] of [['menhir', menhir], ['canto', canto], ['losa', losa]]) {
+        const s = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3());
+        hud.push(`${nombre.padEnd(7)} ${s.x.toFixed(2)} x ${s.y.toFixed(2)} x ${s.z.toFixed(2)} m`);
+      }
+      hud.push(`total ${Math.round(tris)} triángulos`);
+      document.getElementById('hud').textContent = hud.join('\n');
+
+      // `?cerca` encuadra el ortostato solo, al tamaño de la referencia de
+      // estilo. La silueta se juzga de lejos y el relieve de cerca; con un solo
+      // encuadre siempre se corrige a ciegas una de las dos cosas.
+      // Hay que mirarlo desde -Z: el sol de la escena viene de ahí, y desde el
+      // otro lado se juzga la cara en sombra, donde no hay contraste que revele
+      // si los paños existen o no.
+      if (new URLSearchParams(location.search).has('cerca')) {
+        camera.position.set(-11.0, 6.0, -9.5);
+        camera.lookAt(new THREE.Vector3(-17, 5.2, 0));
+      } else {
+        camera.position.set(2, 7.5, 34);
+        camera.lookAt(new THREE.Vector3(1, 4.4, 0));
+      }
+
+      // El banco lo dispara una herramienta headless: avisa cuando ya hay algo
+      // dibujado para no capturar un fotograma en negro.
+      let last = performance.now();
+      let frames = 0;
+      renderer.setAnimationLoop(() => {
+        const now = performance.now();
+        tickMaterials(Math.min((now - last) / 1000, 0.05));
+        last = now;
+        renderer.render(scene, camera);
+        if (++frames === 4) document.body.dataset.listo = '1';
+      });
+    </script>
+  </body>
+</html>

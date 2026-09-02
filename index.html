@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1418" />
+    <title>Portafolio · Promontorio de Piedra</title>
+    <meta
+      name="description"
+      content="Portafolio interactivo en 3D: un promontorio megalítico donde cada sección es un monumento que se puede recorrer."
+    />
+
+    <!-- Espiral triple en SVG embebido: sin petición y sin archivo suelto. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a1215'/%3E%3Cpath d='M16 16 m0 -1.5 a1.5 1.5 0 1 1 -1.5 1.5 a4 4 0 1 0 4 -4 a6.5 6.5 0 1 1 -6.5 6.5 a9 9 0 1 0 9 -9' fill='none' stroke='%234fe6d8' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+
+    <!-- Las tipografías se sirven desde aquí, no desde Google. Las declara
+         `src/ui/fuentes.css`, que genera `tools/fetch-fonts.mjs`.
+
+         Estas dos precargas son las caras que hacen falta para la primera
+         pantalla. Van en el HTML y no esperando a la hoja de estilos porque
+         ese es todo el truco: sin ellas el navegador no sabe que existe un
+         fichero de fuente hasta que ha descargado y leído el CSS, y sólo
+         entonces empieza a pedirlo. Con ellas, las dos descargas arrancan con
+         la primera lectura del documento.
+
+         Sólo `latin`: el subconjunto extendido lo pide el navegador si aparece
+         algún carácter suyo, y precargarlo serían 97 kB que casi nunca se
+         usan. Y `crossorigin` aunque sean del mismo origen — las fuentes se
+         piden siempre en modo CORS, y sin el atributo la precarga no encaja
+         con la petición real y el fichero se descarga dos veces. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fuentes/inter-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fuentes/cinzel-latin.woff2" />
+  </head>
+  <body>
+    <!-- Lienzo 3D -->
+    <canvas id="scene" aria-label="Escena tridimensional del promontorio" role="img"></canvas>
+
+    <!-- ═══════════════════════════ La puerta ═════════════════════════════
+         Dos cuadrados: PANEL o ISLA. Es lo primero que se ve cuando la
+         dirección no pide una versión concreta. La rellena `src/portada/`. -->
+    <div id="portada" class="portada" hidden></div>
+
+    <!-- ══════════════════════════ Pantalla de carga ══════════════════════
+         Arranca oculta: sólo aparece cuando se ha elegido la Isla. Visible de
+         salida, parpadearía un instante antes de la puerta. -->
+    <div id="loader" class="loader" hidden>
+      <div class="loader__inner">
+        <div class="loader__mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="64" height="64">
+            <circle class="mark-ring" cx="32" cy="32" r="27" />
+            <path
+              class="mark-spiral"
+              d="M32 32 m0 -2 a2 2 0 1 1 -2 2 a5 5 0 1 0 5 -5 a8 8 0 1 1 -8 8 a11 11 0 1 0 11 -11 a14 14 0 1 1 -14 14"
+            />
+          </svg>
+        </div>
+        <p class="loader__kicker">Portafolio interactivo</p>
+        <h1 class="loader__title" data-identity-name>—</h1>
+        <p class="loader__role" data-identity-role>—</p>
+
+        <div class="loader__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="loader__fill"></span>
+        </div>
+        <p class="loader__status">Despertando la piedra…</p>
+
+        <button class="loader__enter" type="button" hidden>
+          <span class="loader__enter-ring" aria-hidden="true"></span>
+          <span class="loader__enter-text">Explorar</span>
+        </button>
+
+        <!-- La salida está donde se nota el problema: quien ve la barra
+             arrastrarse es justo quien necesita la versión sin 3D. -->
+        <button class="loader__light" type="button" data-action="ligero">
+          ¿Va lento? Ver la versión ligera
+        </button>
+      </div>
+      <p class="loader__hint">Se recomienda auriculares y pantalla completa</p>
+    </div>
+
+    <!-- ═══════════════════════════ Interfaz ══════════════════════════════ -->
+    <div id="ui" class="ui" hidden>
+      <header class="topbar">
+        <a class="brand" href="#" data-action="home">
+          <span class="brand__glyph" aria-hidden="true"></span>
+          <span class="brand__name" data-identity-name>—</span>
+        </a>
+
+        <div class="compass" aria-hidden="true">
+          <span class="compass__needle"></span>
+          <span class="compass__label" data-compass-label>El Círculo</span>
+        </div>
+
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu">
+          <span class="menu-toggle__lines" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="sr-only">Abrir menú</span>
+        </button>
+      </header>
+
+      <!-- Índice lateral de secciones -->
+      <nav class="rail" aria-label="Secciones">
+        <ul class="rail__list"></ul>
+      </nav>
+
+      <!-- Menú desplegable -->
+      <div id="menu" class="menu" hidden>
+        <ul class="menu__list"></ul>
+        <div class="menu__foot">
+          <button class="menu__mode" type="button" data-action="free">
+            Vuelo libre <kbd>F</kbd>
+          </button>
+          <button class="menu__mode" type="button" data-action="ligero">
+            Versión ligera, sin 3D
+          </button>
+          <p class="menu__help">
+            Arrastra para girar · Rueda para acercar · Clic en un monumento
+          </p>
+        </div>
+      </div>
+
+      <!-- Panel de contenido -->
+      <aside id="panel" class="panel" aria-live="polite" hidden>
+        <button class="panel__close" type="button" aria-label="Cerrar">
+          <span aria-hidden="true">✕</span>
+        </button>
+        <div class="panel__scroll">
+          <div class="panel__body"></div>
+        </div>
+      </aside>
+
+      <!-- Pie -->
+      <footer class="statusbar">
+        <button class="hint" type="button" data-action="help">
+          <span class="hint__key">?</span> Controles
+        </button>
+        <div class="daylight" role="group" aria-label="Momento del día" data-daylight></div>
+        <p class="tooltip" data-tooltip hidden></p>
+        <p class="perf" data-perf></p>
+      </footer>
+
+      <!-- Ayuda -->
+      <div class="help" hidden>
+        <div class="help__card">
+          <h2>Cómo recorrerlo</h2>
+          <dl class="help__list">
+            <dt><kbd>Arrastrar</kbd></dt><dd>Girar alrededor del punto de interés</dd>
+            <dt><kbd>Rueda</kbd></dt><dd>Acercar y alejar</dd>
+            <dt><kbd>Mayús</kbd> + arrastrar</dt><dd>Desplazar el punto de interés</dd>
+            <dt><kbd>Clic</kbd></dt><dd>Abrir el monumento señalado</dd>
+            <dt><kbd>1</kbd> … <kbd>5</kbd></dt><dd>Saltar a una sección</dd>
+            <dt><kbd>C</kbd></dt><dd>Caminar — <kbd>W A S D</kbd>, <kbd>Mayús</kbd> para correr</dd>
+            <dt><kbd>F</kbd></dt><dd>Vuelo libre — <kbd>W A S D</kbd>, <kbd>Espacio</kbd>, <kbd>Ctrl</kbd></dd>
+            <dt><kbd>Esc</kbd></dt><dd>Volver al mirador</dd>
+          </dl>
+          <button class="help__close" type="button">Entendido</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ Versión ligera ═══════════
+         Aquí se monta el portafolio sin 3D: si el equipo no puede con la
+         escena, si el visitante la prefiere o si algo revienta a media carga.
+         Se dibuja desde los mismos datos de `src/content.js`. -->
+    <noscript>
+      <div class="sin-js">
+        <h1>Portafolio</h1>
+        <p>Esta página necesita JavaScript para mostrar su contenido.</p>
+      </div>
+    </noscript>
+    <main id="ligero" class="ligero" hidden></main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
