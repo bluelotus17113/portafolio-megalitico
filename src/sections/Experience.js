@@ -93,12 +93,24 @@ export class ExperienceShrine extends Shrine {
     this.pathCurve = curve2d;
 
     // Losas del sendero, siguiendo el terreno.
+    //
+    // Instanciadas, no sueltas. Son 354 losas que comparten siete geometrías y
+    // un material, y como mallas independientes eran 354 llamadas de dibujo por
+    // fotograma —con el bordillo, la mitad del coste de CPU de toda la isla—
+    // sin que ninguna sea una pieza con identidad: el sendero es una cinta.
+    // Instanciadas por geometría son siete llamadas.
+    //
+    // El azar se consume en EL MISMO ORDEN que antes (desplazamiento, giro,
+    // escala, losa a losa). Esa es la única condición para que el camino salga
+    // colocado exactamente donde estaba: aquí el mundo no está guardado, está
+    // calculado, y cualquier número de más o de menos lo mueve entero.
     const slabCount = 118;
     const slabMat = rockMaterial();
     const slabGeos = [];
     for (let i = 0; i < 7; i++) {
       slabGeos.push(createSlab({ width: 1.5, height: 0.34, depth: 1.15, seed: SEED + 2000 + i, erosion: 0.09 }));
     }
+    const slabLotes = slabGeos.map(() => []);
     for (let i = 0; i < slabCount; i++) {
       const t = i / (slabCount - 1);
       const p = curve2d.getPoint(t);
@@ -110,20 +122,20 @@ export class ExperienceShrine extends Shrine {
         const offset = (l - (lanes - 1) / 2) * (PATH_WIDTH / lanes) + (random() - 0.5) * 0.22;
         const lx = p.x + Math.cos(angle) * offset;
         const lz = p.y - Math.sin(angle) * offset;
-        const slab = new THREE.Mesh(slabGeos[(i * 3 + l) % slabGeos.length], slabMat);
-        slab.position.set(lx, this.groundAt(lx, lz) - 0.14, lz);
-        slab.rotation.y = angle + (random() - 0.5) * 0.25;
-        slab.scale.set(1, 0.85 + random() * 0.4, 1);
-        slab.receiveShadow = true;
-        slab.castShadow = false;
-        this.group.add(slab);
+        slabLotes[(i * 3 + l) % slabGeos.length].push({
+          posicion: new THREE.Vector3(lx, this.groundAt(lx, lz) - 0.14, lz),
+          giro: new THREE.Euler(0, angle + (random() - 0.5) * 0.25, 0),
+          escala: new THREE.Vector3(1, 0.85 + random() * 0.4, 1),
+        });
       }
     }
+    this._sembrarInstanciado(slabLotes, slabGeos, slabMat, 'sendero-losas', { sombra: false });
 
     // Bordillo de cantos a los lados del sendero.
     const kerbMat = rockMaterial({ dark: true });
     const kerbGeos = [];
     for (let i = 0; i < 5; i++) kerbGeos.push(createBoulder({ radius: 0.42, seed: SEED + 2100 + i, detail: 1 }));
+    const kerbLotes = kerbGeos.map(() => []);
     for (let i = 0; i < 70; i++) {
       const t = i / 69;
       const p = curve2d.getPoint(t);
@@ -134,15 +146,14 @@ export class ExperienceShrine extends Shrine {
         const offset = side * (PATH_WIDTH / 2 + 0.55 + random() * 0.35);
         const lx = p.x + Math.cos(angle) * offset;
         const lz = p.y - Math.sin(angle) * offset;
-        const rock = new THREE.Mesh(kerbGeos[i % kerbGeos.length], kerbMat);
-        rock.position.set(lx, this.groundAt(lx, lz) - 0.1, lz);
-        rock.rotation.set(random() * 0.3, random() * Math.PI, random() * 0.3);
-        rock.scale.setScalar(0.6 + random() * 0.55);
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        this.group.add(rock);
+        kerbLotes[i % kerbGeos.length].push({
+          posicion: new THREE.Vector3(lx, this.groundAt(lx, lz) - 0.1, lz),
+          giro: new THREE.Euler(random() * 0.3, random() * Math.PI, random() * 0.3),
+          escala: new THREE.Vector3().setScalar(0.6 + random() * 0.55),
+        });
       }
     }
+    this._sembrarInstanciado(kerbLotes, kerbGeos, kerbMat, 'sendero-cantos', { sombra: true, colisiona: true });
 
     // ---- Mojones ----------------------------------------------------------
     this.milestones = [];
@@ -314,6 +325,44 @@ export class ExperienceShrine extends Shrine {
     const focus = curve2d.getPoint(0.52);
     this.focusOffset.set(focus.x, this.groundAt(focus.x, focus.y) + 5, focus.y);
     return this;
+  }
+
+  /**
+   * Siembra un lote de transformaciones como mallas instanciadas.
+   *
+   * Una malla por geometría, porque lo que cuenta el renderizador no son las
+   * piedras sino las FORMAS distintas: `InstancedMesh` dibuja muchas copias de
+   * una sola malla en una sola llamada, así que 454 piedras repartidas entre
+   * doce formas cuestan doce llamadas y no 454.
+   *
+   * A cambio se pierde el descarte por frustum pieza a pieza —o se dibuja el
+   * sendero entero o ninguno—, que aquí no importa: el camino mide cuarenta
+   * metros y casi siempre se ve completo.
+   *
+   * @param {Array<Array<{posicion: THREE.Vector3, giro: THREE.Euler, escala: THREE.Vector3}>>} lotes
+   * @param {THREE.BufferGeometry[]} geometrias
+   * @param {THREE.Material} material
+   * @param {string} nombre
+   * @param {{sombra: boolean}} opciones
+   */
+  _sembrarInstanciado(lotes, geometrias, material, nombre, { sombra, colisiona = false }) {
+    const matriz = new THREE.Matrix4();
+    const giro = new THREE.Quaternion();
+    lotes.forEach((lote, i) => {
+      if (!lote.length) return;
+      const malla = new THREE.InstancedMesh(geometrias[i], material, lote.length);
+      malla.name = `${nombre}-${i}`;
+      lote.forEach((t, j) => {
+        malla.setMatrixAt(j, matriz.compose(t.posicion, giro.setFromEuler(t.giro), t.escala));
+      });
+      malla.instanceMatrix.needsUpdate = true;
+      malla.castShadow = sombra;
+      malla.receiveShadow = true;
+      // Lo lee `construirColisionadores`: sin esto, instanciar una piedra es
+      // también quitarle el cuerpo.
+      malla.userData.colisionaPorInstancia = colisiona;
+      this.group.add(malla);
+    });
   }
 
   /**

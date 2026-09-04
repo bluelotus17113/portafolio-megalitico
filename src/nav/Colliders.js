@@ -89,22 +89,8 @@ export function construirColisionadores(escena) {
   // hubiera colisiones, que es exactamente lo que pasaba.
   escena.updateMatrixWorld(true);
 
-  escena.traverse((nodo) => {
-    if (!nodo.isMesh || nodo.isInstancedMesh) return;
-    if (!nodo.visible) return;
-    // Y tampoco vale con que el NODO sea visible: las zonas de contacto de los
-    // puntos interactivos son cilindros con `MeshBasicMaterial({visible:false})`,
-    // o sea mallas visibles con material invisible. Miden dos metros de radio y
-    // están plantadas justo delante de cada monumento: como colisionadores
-    // serían muros transparentes en el peor sitio posible.
-    const mats = Array.isArray(nodo.material) ? nodo.material : [nodo.material];
-    if (!mats.some((m) => m && m.visible !== false && (m.opacity ?? 1) > 0.05)) return;
-    // El nombre de la pieza puede estar en el nodo o en el grupo que lo
-    // contiene: un trilito nombra al grupo y deja los postes sin nombre.
-    const etiqueta = nodo.name || nodo.parent?.name || '';
-    if (SIN_CUERPO.some((r) => r.test(etiqueta))) return;
-
-    caja.setFromObject(nodo);
+  /** Filtra una caja ya medida y la guarda si de verdad describe un obstáculo. */
+  const anadir = (etiqueta) => {
     if (caja.isEmpty()) return;
     caja.getSize(tamano);
     if (tamano.y < COMPACTA.altoMin) return;
@@ -121,6 +107,50 @@ export function construirColisionadores(escena) {
       r: Math.hypot(tamano.x, tamano.z) * 0.5,
       etiqueta,
     });
+  };
+
+  const matrizInstancia = new THREE.Matrix4();
+  const matrizMundo = new THREE.Matrix4();
+
+  escena.traverse((nodo) => {
+    if (!nodo.isMesh) return;
+    // Los instanciados no se chocan salvo que pidan lo contrario.
+    //
+    // La regla de siempre es que un `InstancedMesh` es relleno —la hierba, el
+    // pedregal, el arbolado— y ahí una caja por copia serían miles de cajas
+    // para nada. Pero el bordillo del sendero pasó a instanciarse por
+    // rendimiento, y con la regla a secas trece cantos dejaron de existir para
+    // quien camina. Así que el que quiera cuerpo lo dice: `colisionaPorInstancia`.
+    if (nodo.isInstancedMesh && !nodo.userData.colisionaPorInstancia) return;
+    if (!nodo.visible) return;
+    // Y tampoco vale con que el NODO sea visible: las zonas de contacto de los
+    // puntos interactivos son cilindros con `MeshBasicMaterial({visible:false})`,
+    // o sea mallas visibles con material invisible. Miden dos metros de radio y
+    // están plantadas justo delante de cada monumento: como colisionadores
+    // serían muros transparentes en el peor sitio posible.
+    const mats = Array.isArray(nodo.material) ? nodo.material : [nodo.material];
+    if (!mats.some((m) => m && m.visible !== false && (m.opacity ?? 1) > 0.05)) return;
+    // El nombre de la pieza puede estar en el nodo o en el grupo que lo
+    // contiene: un trilito nombra al grupo y deja los postes sin nombre.
+    const etiqueta = nodo.name || nodo.parent?.name || '';
+    if (SIN_CUERPO.some((r) => r.test(etiqueta))) return;
+
+    // Una caja por copia. Es la misma cuenta que hace `Box3.setFromObject`
+    // —la caja de la geometría llevada a mundo—, solo que la matriz de mundo
+    // de una copia es la del nodo por la suya propia.
+    if (nodo.isInstancedMesh) {
+      if (!nodo.geometry.boundingBox) nodo.geometry.computeBoundingBox();
+      for (let i = 0; i < nodo.count; i++) {
+        nodo.getMatrixAt(i, matrizInstancia);
+        matrizMundo.multiplyMatrices(nodo.matrixWorld, matrizInstancia);
+        caja.copy(nodo.geometry.boundingBox).applyMatrix4(matrizMundo);
+        anadir(etiqueta);
+      }
+      return;
+    }
+
+    caja.setFromObject(nodo);
+    anadir(etiqueta);
   });
 
   return new Colisionadores(cajas);
