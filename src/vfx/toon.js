@@ -46,6 +46,53 @@ export const TOON_TIME = {
   shade: { value: new THREE.Vector3(1, 1, 1) },
 };
 
+/**
+ * Tinte de la estación.
+ *
+ * Va aparte del de la hora y por debajo de él: la hora tiñe la LUZ —la banda
+ * iluminada y la de sombra por separado— y la estación tiñe la COSA, el verde
+ * propio de la hoja y de la brizna. Una copa dorada sigue estando dorada de
+ * noche, solo que iluminada por una luna azul. Mezclándolos en un único
+ * multiplicador el otoño se comía el atardecer y viceversa.
+ *
+ * Tres canales porque son tres cosas que no viran juntas —la hoja se va al oro
+ * mucho antes que el prado, y la tierra apenas se mueve— y dos escalares:
+ *
+ *  - `flor`  cuánta flor asoma en la hierba. Cero en invierno.
+ *  - `seco`  cuánto croma se le quita a la vegetación, hacia su propio gris.
+ *
+ * `seco` existe porque un multiplicador NO puede desaturar. Multiplicando un
+ * verde por lo que sea sale otro verde, más claro o más oscuro; para que el
+ * invierno se lea hay que quitarle el croma, y eso es una mezcla hacia la
+ * luminancia, no un producto. El primer invierno se hizo solo con el
+ * multiplicador y salió un prado verde oscuro — o sea, un prado de noche.
+ *
+ * El neutro (todo a 1, `seco` a 0) es EL VERANO: la isla que ya estaba
+ * calibrada. Así ninguna de las paletas medidas hasta ahora se toca, y cada
+ * estación se define por lo que se aparta de ella.
+ */
+export const TOON_ESTACION = {
+  hoja: { value: new THREE.Vector3(1, 1, 1) },
+  hierba: { value: new THREE.Vector3(1, 1, 1) },
+  tierra: { value: new THREE.Vector3(1, 1, 1) },
+  flor: { value: 1 },
+  seco: { value: 0 },
+};
+
+/** GLSL compartido: apaga el croma y luego tiñe. Ese orden, no el contrario. */
+export const GLSL_ESTACION = /* glsl */ `
+  uniform vec3 uEstacionTinte;
+  uniform float uEstacionSeco;
+
+  vec3 estacionar( vec3 c ) {
+    // Rec.709: el gris al que se va un verde tiene que ser el gris que ese
+    // verde pesa, no la media de sus canales — si no, la hoja se apaga a un
+    // tono más claro que la corteza que tiene detrás y flota.
+    float luma = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
+    return mix( c, vec3( luma ), uEstacionSeco ) * uEstacionTinte;
+  }
+`;
+
 /** Actualiza el sol de todo el sombreado cel de una vez. */
 export function setToonSun(direction) {
   TOON_SUN.value.copy(direction).normalize();
@@ -208,6 +255,14 @@ export const TOON_PRESETS = {
  *                                     negro, bajar el nivel cae en la banda de
  *                                     sombra y ahí se queda.
  * @param {object} opts.uniforms       Uniforms adicionales.
+ * @param {'hoja'|'hierba'|'tierra'|null} opts.estacion  Canal de tinte de la
+ *                              estación, o null para no virar con ella. Es
+ *                              opt-in a propósito: la estación es cosa de lo
+ *                              que crece y del suelo. Un menhir de granito no
+ *                              se pone dorado en octubre, y aplicándolo a todo
+ *                              «porque queda cohesionado» se pierde justo el
+ *                              contraste entre la piedra y lo que la rodea,
+ *                              que es lo que esta isla enseña.
  */
 export function applyToonShading(material, {
   mode = 'multiply',
@@ -224,6 +279,7 @@ export function applyToonShading(material, {
   extraFragment = '',
   extraShade = '',
   extraFinal = '',
+  estacion = null,
   uniforms: extraUniforms = {},
 } = {}) {
   const uniforms = {
@@ -247,6 +303,12 @@ export function applyToonShading(material, {
       uCloudScale: TOON_CLOUDS.scale,
       uCloudDrift: TOON_CLOUDS.drift,
       uCloudShadow: { value: cloudShadow },
+    });
+  }
+  if (estacion) {
+    Object.assign(uniforms, {
+      uEstacionTinte: TOON_ESTACION[estacion],
+      uEstacionSeco: TOON_ESTACION.seco,
     });
   }
 
@@ -344,6 +406,8 @@ export function applyToonShading(material, {
            return c * mix( uTimeShade, uTimeLight, t );
          }
 
+         ${estacion ? GLSL_ESTACION : ''}
+
          ${extraFragment}`
       )
       .replace(
@@ -384,6 +448,14 @@ export function applyToonShading(material, {
 
            ${extraFinal}
 
+           ${estacion
+             ? `// Al final del todo, no antes: así vira también el contraluz que
+                // la hoja se añade a sí misma más arriba. Una copa dorada tiene
+                // que encenderse dorada a contraluz, y una hoja seca casi no
+                // encenderse.
+                toonBase = estacionar( toonBase );`
+             : ''}
+
            reflectedLight.directDiffuse = toonBase;
            reflectedLight.indirectDiffuse = vec3( 0.0 );
            reflectedLight.directSpecular = uToonRimColor * toonRimAmount * uTimeLight;
@@ -394,6 +466,10 @@ export function applyToonShading(material, {
 
   // Clave propia: sin ella three reutiliza el programa del material base y el
   // cel shading no llega a compilarse nunca.
-  material.customProgramCacheKey = () => `toon-${key}-${mode}-${cloudShadow > 0 ? 'c' : 'n'}-v2`;
+  // La estación entra en la clave porque cambia el CÓDIGO del shader, no solo
+  // un uniform: dos materiales con la misma `key` y distinto canal de tinte
+  // compartirían programa y uno de los dos se quedaría sin virar.
+  material.customProgramCacheKey = () =>
+    `toon-${key}-${mode}-${cloudShadow > 0 ? 'c' : 'n'}-${estacion ?? 'x'}-v2`;
   return material;
 }

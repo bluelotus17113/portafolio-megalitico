@@ -27,7 +27,8 @@
  */
 
 import * as THREE from 'three';
-import { TOON_SUN, TOON_TIME, setToonSun } from '../vfx/toon.js';
+import { TOON_SUN, TOON_TIME, TOON_ESTACION, setToonSun } from '../vfx/toon.js';
+import { ESTACIONES } from './Estaciones.js';
 
 /** Direcciones y paletas de cada momento. */
 export const PHASES = [
@@ -172,7 +173,7 @@ export class TimeOfDay {
   /**
    * @param {object} parts  Las piezas a las que hay que repartir la paleta.
    */
-  constructor({ sky, ocean, grass, scene, sun, renderer, postfx, inicial }) {
+  constructor({ sky, ocean, grass, scene, sun, renderer, postfx, inicial, estacion }) {
     this.sky = sky;
     this.ocean = ocean;
     this.grass = grass;
@@ -196,12 +197,52 @@ export class TimeOfDay {
     for (const k of COLOR_KEYS) this.value[k] = new THREE.Color(this.phase[k]);
     for (const k of NUMBER_KEYS) this.value[k] = this.phase[k];
 
+    // La estación, igual: clavada de entrada, sin transición. Si se pusiera
+    // después, quien entra en otoño vería la isla reverdecer y volver a
+    // dorarse delante de él.
+    this.estacion = ESTACIONES.find((e) => e.id === estacion) ?? ESTACIONES[1];
+    this.estacionObjetivo = this.estacion;
+    this.estacionValor = {
+      hoja: new THREE.Vector3(...this.estacion.hoja),
+      hierba: new THREE.Vector3(...this.estacion.hierba),
+      tierra: new THREE.Vector3(...this.estacion.tierra),
+      flor: this.estacion.flor,
+      seco: this.estacion.seco,
+      bruma: this.estacion.bruma,
+    };
+
     this._apply();
   }
 
   /** Momento actual, por id. */
   get current() {
     return this.target.id;
+  }
+
+  /** Estación actual, por id. */
+  get estacionId() {
+    return this.estacionObjetivo.id;
+  }
+
+  /**
+   * @param {string} id       Id de estación.
+   * @param {boolean} instant Sin transición.
+   */
+  setEstacion(id, instant = false) {
+    const estacion = ESTACIONES.find((e) => e.id === id);
+    if (!estacion) return false;
+    this.estacionObjetivo = estacion;
+    if (instant) {
+      const v = this.estacionValor;
+      v.hoja.set(...estacion.hoja);
+      v.hierba.set(...estacion.hierba);
+      v.tierra.set(...estacion.tierra);
+      v.flor = estacion.flor;
+      v.seco = estacion.seco;
+      v.bruma = estacion.bruma;
+      this._apply();
+    }
+    return true;
   }
 
   /**
@@ -240,15 +281,37 @@ export class TimeOfDay {
     for (const key of COLOR_KEYS) this.value[key].lerp(_tmpColor.setHex(t[key]), k);
     for (const key of NUMBER_KEYS) this.value[key] += (t[key] - this.value[key]) * k;
 
+    // La estación va MÁS DESPACIO que la hora, y a propósito: cambiar de
+    // momento del día es un amanecer, un fenómeno de minutos que se acepta
+    // comprimido en dos segundos. Un bosque no se pone dorado en dos segundos.
+    // A la mitad de velocidad se lee como un cambio de estado de la isla y no
+    // como un botón que conmuta un filtro.
+    const e = this.estacionObjetivo;
+    const ke = 1 - Math.exp(-dt * 0.8);
+    const v = this.estacionValor;
+    v.hoja.lerp(_tmpVec.set(...e.hoja), ke);
+    v.hierba.lerp(_tmpVec.set(...e.hierba), ke);
+    v.tierra.lerp(_tmpVec.set(...e.tierra), ke);
+    v.flor += (e.flor - v.flor) * ke;
+    v.seco += (e.seco - v.seco) * ke;
+    v.bruma += (e.bruma - v.bruma) * ke;
+
     this._apply();
   }
 
   _apply() {
     const v = this.value;
+    const e = this.estacionValor;
 
     setToonSun(v.sun);
     TOON_TIME.light.value.copy(v.toonLight);
     TOON_TIME.shade.value.copy(v.toonShade);
+
+    TOON_ESTACION.hoja.value.copy(e.hoja);
+    TOON_ESTACION.hierba.value.copy(e.hierba);
+    TOON_ESTACION.tierra.value.copy(e.tierra);
+    TOON_ESTACION.flor.value = e.flor;
+    TOON_ESTACION.seco.value = e.seco;
 
     if (this.sky) {
       const u = this.sky.uniforms;
@@ -284,7 +347,11 @@ export class TimeOfDay {
 
     if (this.scene?.fog) {
       this.scene.fog.color.copy(v.fog);
-      this.scene.fog.density = v.fogDensity;
+      // Aquí es donde se ve la idea entera: la hora pone la densidad, la
+      // estación la multiplica. Un amanecer de invierno es el amanecer de
+      // siempre con media isla más de bruma, y no una quinta paleta escrita a
+      // mano que habría que corregir cada vez que se toca el amanecer.
+      this.scene.fog.density = v.fogDensity * e.bruma;
     }
 
     // La direccional solo existe ya para proyectar sombras: el color y la

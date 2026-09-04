@@ -52,6 +52,7 @@ export class Overlay {
     this.tooltip = this.ui.querySelector('[data-tooltip]');
     this.perf = this.ui.querySelector('[data-perf]');
     this.daylight = this.ui.querySelector('[data-daylight]');
+    this.seasonHost = this.ui.querySelector('[data-estaciones]');
     this.help = this.ui.querySelector('.help');
 
     this.activeId = null;
@@ -242,15 +243,50 @@ export class Overlay {
   }
 
   /**
-   * Construye el selector de momento del día.
+   * Píldora de opciones de la barra de estado.
    *
-   * Los momentos los publica el mundo, no la interfaz: la lista y el orden
-   * viven en `TimeOfDay.js` junto a las paletas, que es donde se añaden o se
-   * quitan. Aquí solo se pintan botones.
+   * La comparten el momento del día y la estación porque son la misma cosa
+   * —una lista corta y excluyente que publica el mundo— y porque el punto de
+   * «esta es la tuya» tenía que funcionar igual en las dos. Con dos copias del
+   * bucle, la segunda se habría quedado sin él a la primera corrección.
    *
-   * @param {Array<{id: string, label: string}>} phases
-   * @param {string} activeId
+   * Las listas las publica el mundo, no la interfaz: viven junto a sus paletas
+   * en `TimeOfDay.js` y en `Estaciones.js`, que es donde se añaden o se quitan.
+   * Aquí solo se pintan botones.
+   *
+   * @param {HTMLElement} host       Dónde van.
+   * @param {Array<{id: string, label: string}>} opciones
+   * @param {string} activeId        Con cuál se está viendo la isla.
+   * @param {string|null} suya       La que le toca al visitante, si alguna.
+   * @param {(id: string) => void} alElegir
+   * @param {(o: object) => string} titulo  Texto del `title` de la suya.
+   * @returns {Map<string, HTMLButtonElement>}
    */
+  _pildora(host, opciones, activeId, suya, alElegir, titulo) {
+    host.textContent = '';
+    const botones = new Map();
+
+    for (const opcion of opciones) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'daylight__option';
+      button.textContent = opcion.label;
+      button.dataset.phase = opcion.id;
+      button.setAttribute('aria-pressed', String(opcion.id === activeId));
+      if (suya && opcion.id === suya) {
+        button.dataset.ahora = '';
+        button.title = titulo(opcion);
+      }
+      button.addEventListener('click', () => {
+        for (const [key, b] of botones) b.setAttribute('aria-pressed', String(key === opcion.id));
+        alElegir(opcion.id);
+      });
+      host.appendChild(button);
+      botones.set(opcion.id, button);
+    }
+    return botones;
+  }
+
   /**
    * @param {Array<{id: string, label: string}>} phases
    * @param {string} activeId  El momento con el que se está viendo la isla.
@@ -258,36 +294,29 @@ export class Overlay {
    */
   setTimePhases(phases, activeId, ahora) {
     if (!this.daylight) return;
-    this.daylight.textContent = '';
-    this.timeButtons = new Map();
-
-    for (const phase of phases) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'daylight__option';
-      button.textContent = phase.label;
-      button.dataset.phase = phase.id;
-      button.setAttribute('aria-pressed', String(phase.id === activeId));
-      if (phase.id === ahora) {
-        button.dataset.ahora = '';
-        button.title = `${phase.label} · la hora que es ahí ahora mismo`;
-      }
-      button.addEventListener('click', () => {
-        this.setTimePhase(phase.id);
-        this.cb.onTimeOfDay?.(phase.id);
-      });
-      this.daylight.appendChild(button);
-      this.timeButtons.set(phase.id, button);
-    }
+    this.timeButtons = this._pildora(
+      this.daylight, phases, activeId, ahora,
+      (id) => this.cb.onTimeOfDay?.(id),
+      (p) => `${p.label} · la hora que es ahí ahora mismo`
+    );
   }
 
-  /** Marca visualmente el momento activo, sin disparar la devolución. */
-  setTimePhase(id) {
-    if (!this.timeButtons) return;
-    for (const [key, button] of this.timeButtons) {
-      button.setAttribute('aria-pressed', String(key === id));
-    }
+  /**
+   * @param {Array<{id: string, label: string}>} seasons
+   * @param {string} activeId   La estación con la que se está viendo la isla.
+   * @param {string|null} suya  La que le toca a la fecha del visitante, o null
+   *                            si su huso es tropical: ahí no hay ninguna que
+   *                            sea la suya y marcar una sería inventarla.
+   */
+  setEstaciones(seasons, activeId, suya) {
+    if (!this.seasonHost) return;
+    this.seasonButtons = this._pildora(
+      this.seasonHost, seasons, activeId, suya,
+      (id) => this.cb.onEstacion?.(id),
+      (e) => `${e.label} · la estación que le toca a tu fecha`
+    );
   }
+
 
   setTooltip(text) {
     if (!text) {

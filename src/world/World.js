@@ -18,6 +18,7 @@ import { createLeyLine, createLeyRing } from '../vfx/LeyLines.js';
 import { pathRoute, polarRoute, pathKeepOut, createPaths, createPathKerb, routeClimb } from './Paths.js';
 import { setToonSun, setToonCloudMap, tickToonClouds } from '../vfx/toon.js';
 import { TimeOfDay, PHASES } from './TimeOfDay.js';
+import { ESTACIONES } from './Estaciones.js';
 import { createDais } from '../models/Dais.js';
 import { createTrilithon } from '../models/Megaliths.js';
 import { createStone, createBoulder, stoneMesh, rockMaterial } from '../models/StoneFactory.js';
@@ -774,9 +775,10 @@ export class World {
    * Enchufa el ciclo de día. Se llama desde la experiencia porque necesita el
    * renderizador y la cadena de post-proceso, que el mundo no conoce.
    */
-  attachTimeOfDay({ renderer, postfx, inicial }) {
+  attachTimeOfDay({ renderer, postfx, inicial, estacion }) {
     this.time = new TimeOfDay({
       inicial,
+      estacion,
       sky: this.sky,
       ocean: this.ocean,
       grass: this.grass,
@@ -791,6 +793,11 @@ export class World {
   /** Ids y etiquetas de los momentos disponibles. */
   static get phases() {
     return PHASES.map((p) => ({ id: p.id, label: p.label }));
+  }
+
+  /** Ids y etiquetas de las estaciones disponibles. */
+  static get seasons() {
+    return ESTACIONES.map((e) => ({ id: e.id, label: e.label }));
   }
 
   // ------------------------------------------------------------------ ciclo

@@ -14,6 +14,7 @@ import '../ui/escena.css';
 import { PostFX } from './PostFX.js';
 import { World } from '../world/World.js';
 import { faseDeLaHora } from '../world/TimeOfDay.js';
+import { estacionDeLaFecha } from '../world/Estaciones.js';
 import { CameraRig } from '../nav/CameraRig.js';
 import { Interaction } from '../nav/Interaction.js';
 import { esTactil, MandoTactil } from '../nav/MandoTactil.js';
@@ -70,6 +71,22 @@ export class Experience {
     this.momentoInicial =
       parametros.get('momento') ?? (this.instantCamera ? 'dia' : faseDeLaHora());
     /**
+     * Y con qué estación.
+     *
+     * Mismo mecanismo que el momento, con la misma anulación por `?instant`
+     * —una captura tiene que salir siempre igual—, pero con una diferencia de
+     * fondo que conviene no olvidar: la hora del día la tiene todo el mundo y
+     * la estación no. Entre los trópicos el año va de seco y lluvias, así que
+     * `estacionDeLaFecha` devuelve el verano ahí y el selector de la barra
+     * pasa a ser la respuesta de verdad en vez de un adorno.
+     *
+     * El verano es además el neutro de la tabla, o sea la isla tal y como
+     * estaba calibrada: quien caiga en ese caso no ve nada raro, ve la isla.
+     */
+    this.estacionInicial =
+      parametros.get('estacion') ??
+      (this.instantCamera ? 'verano' : estacionDeLaFecha() ?? 'verano');
+    /**
      * Modo edición: gizmo, panel y guardado al proyecto.
      *
      * Solo en desarrollo, y no por prudencia sino por definición: guardar
@@ -86,6 +103,7 @@ export class Experience {
       onToggleWalk: () => this.toggleWalk(),
       onPanelClose: () => this.clearSelection(),
       onTimeOfDay: (id) => this.world?.time?.set(id),
+      onEstacion: (id) => this.world?.time?.setEstacion(id),
     });
 
     // Aquí ya no se comprueba WebGL: si esta clase se ha llegado a importar es
@@ -235,12 +253,17 @@ export class Experience {
       renderer: this.renderer,
       postfx: this.postfx,
       inicial: this.momentoInicial,
+      estacion: this.estacionInicial,
     });
     // El tercer argumento es qué hora tiene el visitante de verdad, que no
     // siempre es con la que se abre: enseñarlo en la barra es lo que explica
     // por qué la isla ha salido de noche, y lo que deja volver a «su» hora
     // después de haber curioseado las otras.
     this.overlay.setTimePhases(World.phases, time.current, faseDeLaHora());
+    // La estación lleva el mismo punto, pero significa algo más flojo: «esta
+    // es la que le sale a tu fecha», no «esta es la tuya». Por eso en los husos
+    // tropicales no se marca ninguna — no hay ninguna que sea la suya.
+    this.overlay.setEstaciones(World.seasons, time.estacionId, estacionDeLaFecha());
 
     // Recalce del pie de las piedras de pie. Va después del mundo entero
     // —necesita las piezas ya colocadas para medir dónde apoya cada una— y

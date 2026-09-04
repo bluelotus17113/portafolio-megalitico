@@ -25,7 +25,7 @@
 import * as THREE from 'three';
 import { registerClock } from '../vfx/materials.js';
 import { makeRandom, SimplexNoise } from '../utils/noise.js';
-import { ANIME, TOON_CLOUDS, TOON_TIME } from '../vfx/toon.js';
+import { ANIME, TOON_CLOUDS, TOON_TIME, TOON_ESTACION } from '../vfx/toon.js';
 import { WORLD } from '../config.js';
 
 const BLADE_SEGMENTS = 4;
@@ -199,6 +199,14 @@ const fragmentShader = /* glsl */ `
   uniform float uCloudShadow;
   uniform vec3 uTimeLight;
   uniform vec3 uTimeShade;
+  uniform vec3 uEstacionTinte;
+  uniform float uEstacionSeco;
+  uniform float uEstacionFlor;
+
+  vec3 estacionar( vec3 c ) {
+    float luma = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
+    return mix( c, vec3( luma ), uEstacionSeco ) * uEstacionTinte;
+  }
 
   varying vec3 vBase;
   varying vec4 vTip;
@@ -216,7 +224,15 @@ const fragmentShader = /* glsl */ `
     // está entre otras briznas. Por encima manda la punta. Con el exponente
     // alto que llevaba antes, casi toda la brizna era el verde azulado de la
     // base y la mata se leía oscura sobre el prado en vez de encenderlo.
-    vec3 blade = mix( vBase, vTip.rgb, pow( vHeight, 0.85 ) );
+    //
+    // La estación tiñe los DOS extremos de la brizna aquí arriba, y a partir
+    // de este punto ya no se vuelve a nombrar vTip.rgb: se usa tipCol.
+    // Es la trampa de este shader: el color de la punta reaparece más abajo
+    // dos veces, en la racha de viento y en el contraluz, y dejando una sola
+    // sin teñir la punta se queda verde julio sobre una brizna parda.
+    vec3 baseCol = estacionar( vBase );
+    vec3 tipCol = estacionar( vTip.rgb );
+    vec3 blade = mix( baseCol, tipCol, pow( vHeight, 0.85 ) );
 
     // Flor: remata el tallo. Tres colores, elegidos por brizna.
     //
@@ -228,14 +244,23 @@ const fragmentShader = /* glsl */ `
       float pick = fract( vTip.w * 7.0 );
       vec3 petal = pick < 0.34 ? uFlowerA : ( pick < 0.67 ? uFlowerB : uFlowerC );
       petal = mix( petal, blade, 0.22 );
-      float head = smoothstep( 0.80, 0.94, vHeight );
+      // La flor no se tiñe: una margarita es blanca en abril y en octubre.
+      // Lo que cambia con la estación es CUÁNTA se ve, y se mueve por el
+      // tamaño de la cabeza, no por la mezcla —por encima de 1 la mezcla
+      // extrapola y el pétalo se sale de gama—. Cero en invierno, y en
+      // primavera la cabeza baja por el tallo.
+      //
+      // Ojo con lo que esto NO hace: qué briznas florecen está horneado en el
+      // atributo, así que la primavera agranda las flores que ya había, no
+      // saca flores donde no las hay.
+      float head = clamp( smoothstep( 0.80, 0.94, vHeight ) * uEstacionFlor, 0.0, 1.0 );
       blade = mix( blade, petal, head );
     }
 
     // La punta se aclara al tensarse con la racha: el «color change» del
     // esquema de la referencia. Es sutil, pero es lo que hace que el prado
     // parezca respirar en vez de limitarse a moverse.
-    blade = mix( blade, vTip.rgb, vWind * 0.30 * vHeight );
+    blade = mix( blade, tipCol, vWind * 0.30 * vHeight );
 
     // Escalón duro. En el material del suelo de la referencia las dos paradas
     // de la rampa están en la MISMA posición: un corte perfecto. Aquí se deja
@@ -269,7 +294,7 @@ const fragmentShader = /* glsl */ `
 
     // Contraluz en el filo de la punta: la brizna se enciende por dentro.
     float back = clamp( -ndl, 0.0, 1.0 );
-    color += vTip.rgb * uTimeLight * pow( back, 2.2 ) * uRimLight * pow( vHeight, 2.0 );
+    color += tipCol * uTimeLight * pow( back, 2.2 ) * uRimLight * pow( vHeight, 2.0 );
 
     gl_FragColor = vec4( color, 1.0 );
     #include <fog_fragment>
@@ -465,6 +490,12 @@ export function createGrass(field, sunDirection, {
   uniforms.uCloudDrift = TOON_CLOUDS.drift;
   uniforms.uTimeLight = TOON_TIME.light;
   uniforms.uTimeShade = TOON_TIME.shade;
+  // Van aquí abajo y no en el bloque de `merge` de arriba por lo mismo que los
+  // de la hora: `merge` clona por valor y la referencia compartida se perdería.
+  // El prado se quedaría verde julio mientras el bosque se pone dorado.
+  uniforms.uEstacionTinte = TOON_ESTACION.hierba;
+  uniforms.uEstacionSeco = TOON_ESTACION.seco;
+  uniforms.uEstacionFlor = TOON_ESTACION.flor;
 
   const material = new THREE.ShaderMaterial({
     uniforms,

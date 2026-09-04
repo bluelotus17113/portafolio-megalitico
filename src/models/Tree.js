@@ -868,6 +868,11 @@ export function leafMaterial(species) {
   applyToonShading(material, {
     mode: 'replace',
     key: `leaf-${species}`,
+    // La copa vira con la estación; el tronco no. La corteza de un roble es la
+    // misma en abril que en noviembre, y tiñéndola también se pierde el
+    // contraste entre rama y hoja, que es de lo poco que sostiene la silueta
+    // del árbol cuando la copa se apaga en invierno.
+    estacion: 'hoja',
     bands: 3,
     // Corte casi duro: en la referencia el follaje tiene mesetas largas de
     // color plano y el salto ocurre en una franja estrechísima.

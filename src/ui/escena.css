@@ -821,6 +821,18 @@ to   { opacity: 1; transform: none; }
 }
 
 /* Selector de momento del día: mismo vidrio que el resto del HUD. */
+/* Las dos píldoras de la barra: el momento del día y la estación.
+   En cuanto no caben una al lado de otra se parten, y la de la estación baja
+   primero — se cambia menos veces que la hora. */
+.pildoras {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .daylight {
   display: inline-flex;
   align-items: center;
@@ -902,12 +914,20 @@ to   { opacity: 1; transform: none; }
     gap: 10px;
   }
 
-  .daylight {
+  .pildoras {
     /* El 100 % es para partir la línea; el `max-content` deja que la píldora
        siga siendo una píldora en vez de estirarse de lado a lado. */
     flex-basis: 100%;
     max-width: max-content;
     margin-inline: auto;
+  }
+
+  /* Dos grupos de cuatro botones no caben en 420 px ni recortando la letra:
+     medido, piden 480. Aquí se parten en dos filas y las dos van centradas,
+     que es lo que `.pildoras` ya hace — esta regla solo les da el ancho para
+     que puedan partirse. */
+  .daylight {
+    max-width: 100%;
   }
 }
 

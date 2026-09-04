@@ -626,7 +626,15 @@ export function buildTerrain(field) {
 
   // Cel shading encima de la mezcla césped/roca. Va después de asignar el
   // `onBeforeCompile` de arriba: `applyToonShading` encadena el que encuentre.
-  applyToonShading(material, { ...TOON_PRESETS.terrain, cloudShadow: 0.42, key: 'terrain-macro' });
+  // El suelo vira poco —la tabla de estaciones apenas lo mueve— pero tiene que
+  // virar: con el prado pardo y el terreno verde de julio, el borde donde
+  // acaba la hierba instanciada se convierte en una raya.
+  applyToonShading(material, {
+    ...TOON_PRESETS.terrain,
+    cloudShadow: 0.42,
+    key: 'terrain-macro',
+    estacion: 'tierra',
+  });
 
   const mesh = new THREE.Mesh(geo, material);
   mesh.name = 'terrain';
