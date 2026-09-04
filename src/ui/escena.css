@@ -852,6 +852,26 @@ to   { opacity: 1; transform: none; }
   color: var(--ink);
 }
 
+/* El momento que le toca al reloj de quien mira. La isla se abre con él, así
+   que el punto no es adorno: es lo que explica por qué ha salido de noche, y
+   por dónde se vuelve a «su» hora después de curiosear las otras. */
+.daylight__option[data-ahora] {
+  position: relative;
+}
+
+.daylight__option[data-ahora]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: var(--arcane);
+  opacity: 0.7;
+}
+
 .daylight__option[aria-pressed='true'] {
   color: var(--ink);
   background: var(--glass-strong);
@@ -864,6 +884,30 @@ to   { opacity: 1; transform: none; }
     padding: 6px 9px;
     font-size: 0.56rem;
     letter-spacing: 0.1em;
+  }
+}
+
+/* Por debajo de esto la barra de horas ya no cabe al lado de «Controles».
+   Medido a 360 px: el botón ocupa 140, la barra necesita 292 y con los
+   márgenes hacen falta 480 — así que «Noche» se salía entera de la pantalla.
+   Daba igual mientras la isla siempre abriera de día; desde que abre a la
+   hora que es de verdad, ese es justo el botón que hace falta cuando alguien
+   llega de noche y quiere ver el sitio con luz.
+
+   Se parte en dos líneas. `wrap-reverse` para que «Controles» siga abajo del
+   todo y la barra suba encima, y no al revés. */
+@media (max-width: 520px) {
+  .statusbar {
+    flex-wrap: wrap-reverse;
+    gap: 10px;
+  }
+
+  .daylight {
+    /* El 100 % es para partir la línea; el `max-content` deja que la píldora
+       siga siendo una píldora en vez de estirarse de lado a lado. */
+    flex-basis: 100%;
+    max-width: max-content;
+    margin-inline: auto;
   }
 }
 
@@ -882,6 +926,21 @@ to   { opacity: 1; transform: none; }
   color: var(--ink);
   white-space: nowrap;
   animation: rise 0.3s var(--ease);
+}
+
+/* En un teléfono el aviso no cabe en una línea: «A pie · palanca para andar ·
+   arrastra para mirar» se salía por la derecha y se comía la palanca. Va
+   detrás de la regla de arriba a propósito — misma especificidad, gana la
+   última. */
+@media (max-width: 520px) {
+  .tooltip {
+    flex-basis: 100%;
+    max-width: 100%;
+    margin-inline: auto;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.6;
+  }
 }
 
 .perf {
@@ -1058,9 +1117,12 @@ to   { opacity: 1; transform: none; }
 .mando__base {
   position: absolute;
   left: max(var(--pad), env(safe-area-inset-left));
-  /* Por encima de la barra de estado: la palanca y los botones del momento
-     del día se pisaban en pantallas bajas. */
-  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 58px);
+  /* Por encima de la barra de estado, midiéndola.
+     `--alto-barra` lo escribe `MandoTactil` con la altura que tiene la barra
+     de verdad en ese momento. Un número fijo aquí no vale: la barra crece
+     cuando el aviso se parte en dos líneas y cuando los momentos del día se
+     bajan a su propia fila, y con el número fijo la palanca acababa encima. */
+  bottom: calc(var(--alto-barra, 58px) + 14px);
   width: clamp(116px, 27vw, 164px);
   aspect-ratio: 1;
   display: grid;
@@ -1105,7 +1167,7 @@ to   { opacity: 1; transform: none; }
 .mando__salir {
   position: absolute;
   right: max(var(--pad), env(safe-area-inset-right));
-  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 58px);
+  bottom: calc(var(--alto-barra, 58px) + 14px);
   padding: 12px 22px;
   border: 1px solid var(--line);
   border-radius: 999px;

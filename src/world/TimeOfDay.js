@@ -144,11 +144,35 @@ const COLOR_KEYS = [
 ];
 const NUMBER_KEYS = ['fogDensity', 'cloudCut', 'stars', 'bloom', 'exposure'];
 
+/**
+ * Qué momento del día es AHORA donde está quien mira.
+ *
+ * Cuatro fases y un reloj, que es todo lo que hay. Calcular el orto y el ocaso
+ * de verdad pediría la latitud, y pedirle la ubicación a alguien que acaba de
+ * entrar a ver un portafolio cuesta mucho más de lo que valen los veinte
+ * minutos de precisión que se ganan. Los tramos son los de un día templado,
+ * que es donde aciertan más veces.
+ *
+ * Se lee el reloj DEL VISITANTE, no un huso fijo: `getHours` devuelve la hora
+ * local del navegador, así que la isla amanece a la vez que amanece fuera de
+ * su ventana.
+ *
+ * @param {Date} fecha
+ * @returns {string} id de fase
+ */
+export function faseDeLaHora(fecha = new Date()) {
+  const hora = fecha.getHours() + fecha.getMinutes() / 60;
+  if (hora >= 5 && hora < 9) return 'amanecer';
+  if (hora >= 9 && hora < 18) return 'dia';
+  if (hora >= 18 && hora < 21) return 'tarde';
+  return 'noche';
+}
+
 export class TimeOfDay {
   /**
    * @param {object} parts  Las piezas a las que hay que repartir la paleta.
    */
-  constructor({ sky, ocean, grass, scene, sun, renderer, postfx }) {
+  constructor({ sky, ocean, grass, scene, sun, renderer, postfx, inicial }) {
     this.sky = sky;
     this.ocean = ocean;
     this.grass = grass;
@@ -157,7 +181,10 @@ export class TimeOfDay {
     this.renderer = renderer;
     this.postfx = postfx;
 
-    this.phase = PHASES[1];
+    // La fase inicial se aplica de golpe en el constructor, antes del primer
+    // fotograma: si se pusiera con `set()` después, quien entrase de noche
+    // vería la isla amanecer y ponerse a oscuras delante de él.
+    this.phase = PHASES.find((p) => p.id === inicial) ?? PHASES[1];
     this.target = this.phase;
 
     // Estado interpolado: arranca clavado en la fase inicial.

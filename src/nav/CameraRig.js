@@ -555,6 +555,11 @@ export class CameraRig {
     this.walk.vaiven = 0;
     this._cancelTravel();
     this.mode = 'walk';
+    // Y se avisa, como haría `setMode`. No es un detalle: por aquí es por donde
+    // se entra a la isla —el vuelo de llegada acaba plantando al visitante—,
+    // así que sin este aviso el mando táctil no aparecía justo en el único
+    // camino que recorre todo el mundo.
+    this.onModo?.('walk');
     this.camera.quaternion.setFromEuler(new THREE.Euler(this.free.pitch, rumbo, 0, 'YXZ'));
   }
 

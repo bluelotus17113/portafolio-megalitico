@@ -25,7 +25,11 @@
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 
-const URL = process.env.URL ?? 'http://127.0.0.1:5173/?instant&tactil';
+const BASE = process.env.URL ?? 'http://127.0.0.1:5173/';
+/** `?instant` para las medidas —sin vuelo de llegada— y `?tactil` para el mando. */
+const URL = `${BASE}?instant&tactil`;
+/** La misma isla pero entrando como entra todo el mundo, con su vuelo. */
+const URL_LLEGADA = `${BASE}?modo=3d&tactil`;
 
 const FIREFOX = [process.env.FIREFOX_PATH, '/usr/lib/firefox/firefox', '/usr/bin/firefox']
   .filter(Boolean)
@@ -196,6 +200,39 @@ const fuera = await page.evaluate(() => ({
 }));
 comprobar(fuera.modo === 'orbit', 'el botón Salir devuelve a la órbita', fuera.modo);
 comprobar(fuera.mandoOculto, 'y el mando se guarda');
+
+console.log('── llegar a la isla es llegar a pie');
+
+// El camino que recorre TODO el mundo no es el botón del menú: es pulsar
+// «Explorar» y dejarse llevar. El vuelo de llegada acaba plantando al
+// visitante de pie, y ahí el modo se cambia sin pasar por `setMode`, así que
+// esta es la comprobación que separa «el mando funciona» de «el mando está».
+const llegada = await browser.newPage();
+await llegada.setViewport({ width: 420, height: 860 });
+const erroresLlegada = [];
+llegada.on('pageerror', (e) => erroresLlegada.push(e.message.slice(0, 200)));
+await llegada.goto(URL_LLEGADA, { waitUntil: 'load', timeout: 240000 });
+await llegada.waitForFunction(
+  () => { const el = document.querySelector('.loader__enter'); return el && !el.hidden; },
+  { timeout: 240000 }
+);
+await llegada.click('.loader__enter');
+const aterrizaje = await llegada
+  .waitForFunction(() => window.__portfolio.rig.mode === 'walk', { timeout: 30000 })
+  .then(() => llegada.evaluate(() => ({
+    mando: document.querySelector('.mando')?.hidden === false,
+    aviso: document.querySelector('[data-tooltip]')?.textContent ?? '',
+  })))
+  .catch(() => null);
+
+comprobar(!!aterrizaje, 'el vuelo de llegada acaba a pie');
+comprobar(aterrizaje?.mando === true, 'y el mando está puesto al aterrizar');
+comprobar(
+  /palanca/i.test(aterrizaje?.aviso ?? ''),
+  'el aviso habla de la palanca, no de W A S D',
+  aterrizaje?.aviso
+);
+errores.push(...erroresLlegada);
 
 comprobar(errores.length === 0, 'consola limpia', errores.slice(0, 2).join(' · '));
 

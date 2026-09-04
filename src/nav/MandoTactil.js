@@ -136,10 +136,39 @@ export class MandoTactil {
     this.pomo.style.transform = '';
   }
 
+  /**
+   * Mide la barra de estado y se la cuenta al CSS.
+   *
+   * La palanca va justo encima de esa barra, y la barra no mide siempre lo
+   * mismo: en un teléfono el aviso se parte en dos líneas y los momentos del
+   * día bajan a una fila propia. Con un número fijo la palanca acababa encima
+   * de los botones, que es peor que no tenerla.
+   *
+   * Se mide en el fotograma siguiente porque el aviso se pone DESPUÉS de
+   * cambiar de modo: medir ahora mismo daría la barra sin él.
+   */
+  _medirBarra() {
+    requestAnimationFrame(() => {
+      if (!this.el || this.el.hidden) return;
+      const barra = document.querySelector('.statusbar');
+      if (!barra) return;
+      this.el.style.setProperty('--alto-barra', `${Math.round(barra.getBoundingClientRect().height)}px`);
+    });
+  }
+
   /** @param {boolean} visible */
   mostrar(visible) {
     if (!this.el) return;
     this.el.hidden = !visible;
+    if (visible) {
+      this._medirBarra();
+      // Y otra vez si gira el teléfono: en horizontal la barra vuelve a caber
+      // en una línea y la palanca tiene que bajar con ella.
+      this._onResize ??= () => this._medirBarra();
+      window.addEventListener('resize', this._onResize);
+    } else if (this._onResize) {
+      window.removeEventListener('resize', this._onResize);
+    }
     // Al esconderlo hay que soltar la palanca a mano: si se sale del modo a
     // pie con el dedo puesto, el `pointerup` nunca llega y el visitante se
     // queda andando solo la próxima vez que entre.
@@ -151,6 +180,7 @@ export class MandoTactil {
 
   dispose() {
     if (!this.el) return;
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
     this.base.removeEventListener('pointerdown', this._onDown);
     this.base.removeEventListener('pointermove', this._onMove);
     this.base.removeEventListener('pointerup', this._onUp);

@@ -251,7 +251,12 @@ export class Overlay {
    * @param {Array<{id: string, label: string}>} phases
    * @param {string} activeId
    */
-  setTimePhases(phases, activeId) {
+  /**
+   * @param {Array<{id: string, label: string}>} phases
+   * @param {string} activeId  El momento con el que se está viendo la isla.
+   * @param {string} [ahora]   El momento que le toca al reloj del visitante.
+   */
+  setTimePhases(phases, activeId, ahora) {
     if (!this.daylight) return;
     this.daylight.textContent = '';
     this.timeButtons = new Map();
@@ -263,6 +268,10 @@ export class Overlay {
       button.textContent = phase.label;
       button.dataset.phase = phase.id;
       button.setAttribute('aria-pressed', String(phase.id === activeId));
+      if (phase.id === ahora) {
+        button.dataset.ahora = '';
+        button.title = `${phase.label} · la hora que es ahí ahora mismo`;
+      }
       button.addEventListener('click', () => {
         this.setTimePhase(phase.id);
         this.cb.onTimeOfDay?.(phase.id);

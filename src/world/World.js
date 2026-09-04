@@ -774,8 +774,9 @@ export class World {
    * Enchufa el ciclo de día. Se llama desde la experiencia porque necesita el
    * renderizador y la cadena de post-proceso, que el mundo no conoce.
    */
-  attachTimeOfDay({ renderer, postfx }) {
+  attachTimeOfDay({ renderer, postfx, inicial }) {
     this.time = new TimeOfDay({
+      inicial,
       sky: this.sky,
       ocean: this.ocean,
       grass: this.grass,

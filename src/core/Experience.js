@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import '../ui/escena.css';
 import { PostFX } from './PostFX.js';
 import { World } from '../world/World.js';
+import { faseDeLaHora } from '../world/TimeOfDay.js';
 import { CameraRig } from '../nav/CameraRig.js';
 import { Interaction } from '../nav/Interaction.js';
 import { esTactil, MandoTactil } from '../nav/MandoTactil.js';
@@ -49,6 +50,24 @@ export class Experience {
     const parametros = new URLSearchParams(location.search);
     /** Sin animación de cámara. Lo activa la herramienta de capturas. */
     this.instantCamera = parametros.has('instant');
+    /**
+     * Con qué luz se abre la isla.
+     *
+     * Por defecto, la del reloj del visitante: quien entra a las once de la
+     * noche llega de noche. La isla no simula el paso del tiempo —las cuatro
+     * fases se siguen cambiando a mano en la barra—, pero empezar a la hora
+     * que es de verdad hace que el sitio parezca uno y no un decorado.
+     *
+     * Dos anulaciones, y las dos hacen falta:
+     *
+     *  - `?momento=noche` la fija. Sirve para enlazar la isla con una luz
+     *    concreta y para probar una fase sin cambiar el reloj del sistema.
+     *  - `?instant` la clava en el mediodía. Ese parámetro es el de las
+     *    herramientas de captura, y una escena que cambia de color según la
+     *    hora a la que se lance la prueba no se puede comparar con la de ayer.
+     */
+    this.momentoInicial =
+      parametros.get('momento') ?? (this.instantCamera ? 'dia' : faseDeLaHora());
     /**
      * Modo edición: gizmo, panel y guardado al proyecto.
      *
@@ -211,8 +230,16 @@ export class Experience {
     // El ciclo de día se engancha con el mundo ya montado: necesita el cielo,
     // el mar y la hierba construidos, y además el renderizador y el
     // post-proceso, que el mundo no conoce.
-    const time = this.world.attachTimeOfDay({ renderer: this.renderer, postfx: this.postfx });
-    this.overlay.setTimePhases(World.phases, time.current);
+    const time = this.world.attachTimeOfDay({
+      renderer: this.renderer,
+      postfx: this.postfx,
+      inicial: this.momentoInicial,
+    });
+    // El tercer argumento es qué hora tiene el visitante de verdad, que no
+    // siempre es con la que se abre: enseñarlo en la barra es lo que explica
+    // por qué la isla ha salido de noche, y lo que deja volver a «su» hora
+    // después de haber curioseado las otras.
+    this.overlay.setTimePhases(World.phases, time.current, faseDeLaHora());
 
     // Catálogo de piezas y anulaciones guardadas.
     //
@@ -393,9 +420,11 @@ export class Experience {
       // Sin puntero capturado, lo primero que hay que decir es cómo mirar: sin
       // eso el visitante aterriza, mueve el ratón y no pasa nada.
       this.overlay.setTooltip(
-        gesto
-          ? 'A pie · W A S D · Mayús para correr · Esc para salir'
-          : 'Pulsa para mirar alrededor · W A S D para andar · Esc para salir'
+        esTactil()
+          ? 'A pie · palanca para andar · arrastra para mirar'
+          : gesto
+            ? 'A pie · W A S D · Mayús para correr · Esc para salir'
+            : 'Pulsa para mirar alrededor · W A S D para andar · Esc para salir'
       );
     };
 
