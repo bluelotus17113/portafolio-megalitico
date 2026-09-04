@@ -53,6 +53,9 @@ const EXCLUIDAS = new Set([
   'grass',
   'forest',
   'pedregal',
+  // Los calzos del pie de cada menhir: guarnición instanciada, doscientas
+  // ochenta y seis copias de cinco formas. Mover una no es una edición.
+  'calzos',
   'ley',
   'ley-line',
   'ley-ring',

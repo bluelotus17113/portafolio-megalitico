@@ -136,7 +136,7 @@ function boxGrid(hx, hy, hz, nx, ny, nz) {
 // dentro de una celda y salgan esquirlas.
 const F_ESTRATO = 0.16; // planos de sedimentación: tumbados, poco frecuentes
 const F_PANO = 0.26; // paños de fractura: el grano dominante
-const F_PICADO = 1.1; // ondulación fina; por debajo de esto ya alías
+const F_PICADO = 1.8; // ondulación fina; por debajo de esto ya alías
 
 /**
  * Ortostato: bloque de cantera. Caja subdividida, achaflanada, partida en paños
@@ -185,7 +185,14 @@ export function createStone({
   // Referirla al eje largo de cada pieza —que fue el primer intento— parece lo
   // mismo y no lo es: una pata de dolmen de 3,4 m salía con celda de 11 cm y
   // 3.800 triángulos, más malla que el menhir de diez metros que tiene al lado.
-  const cell = clamp(0.34 * (3 / Math.max(1, detail)), 0.10, 1.2);
+  //
+  // Bajada de 0,34 a 0,22 m. La celda es el techo del detalle: nada más
+  // pequeño que ella puede existir en la malla, y con 34 cm un menhir no tenía
+  // sitio para el picado del cincel — se leía como barro alisado. Toda la
+  // piedra de la isla sumaba 286.000 triángulos, el 4 % de la escena, mientras
+  // el arbolado del fondo se llevaba 3,2 millones; es al revés de donde mira
+  // el visitante. A 0,22 la piedra cuesta 2,4 veces más y sigue siendo calderilla.
+  const cell = clamp(0.22 * (3 / Math.max(1, detail)), 0.08, 1.2);
   const nx = Math.max(2, Math.round(width / cell));
   const ny = Math.max(2, Math.round(height / cell));
   const nz = Math.max(2, Math.round(depth / cell));
@@ -293,7 +300,10 @@ export function createStone({
     // El desportillado solo resta: un canto golpeado pierde material, no lo gana.
     const mella = edge * Math.abs(noise.fbm(px * 1.5, py * 1.5, pz * 1.5, 2, 2.3, 0.5));
 
-    let disp = (deriva * 0.5 + estrato * 0.42 + pano * 0.85 + picado * 0.10 - mella * 0.85) * amp;
+    // El picado sube de 0,10 a 0,20: con la celda a 22 cm la malla ya puede
+    // llevarlo sin que se convierta en ruido de un vértice sí y otro no. Es el
+    // grano que separa una piedra trabajada de un bulto.
+    let disp = (deriva * 0.5 + estrato * 0.42 + pano * 0.85 + picado * 0.20 - mella * 0.85) * amp;
 
     // Frente desbastado: la cara labrada de una estela está aplanada a cincel
     // mientras el canto y la coronación siguen en bruto. Ese contraste entre lo
@@ -421,6 +431,15 @@ export function rockMaterial({ dark = false } = {}) {
   material.userData.uniforms = {
     uRock: { value: tex.map },
     uRough: { value: tex.roughnessMap },
+    // El mapa de normales lo generaba `granite()` desde el principio y nadie
+    // lo enchufaba: la piedra se dibujaba con el color del granito y con el
+    // relieve de un plástico liso. Es lo que hacía que de cerca un menhir
+    // pareciera una foto de piedra pegada sobre una tabla.
+    uRockN: { value: tex.normalMap },
+    // Cuánto se cree el sombreado ese relieve. Con el cel shading no se puede
+    // ir a 1: el grano fino haría saltar de banda a píxeles sueltos y la
+    // piedra herviría. A 0,55 el grano se lee y las bandas siguen limpias.
+    uRelieve: { value: 0.55 },
     uScale: { value: 0.42 },
     uLichenDir: { value: new THREE.Vector3(0.25, 1, -0.2).normalize() },
   };
@@ -433,13 +452,18 @@ export function rockMaterial({ dark = false } = {}) {
         '#include <common>',
         `#include <common>
          varying vec3 vObjPos;
-         varying vec3 vObjNormal;`
+         varying vec3 vObjNormal;
+         // normalMatrix es uniforme del vertex shader y NO existe en el
+         // fragmento: usarlo alli no falla al empaquetar, revienta al enlazar
+         // el programa y la piedra se queda sin material. Se pasa a mano.
+         varying mat3 vNormalMat;`
       )
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
          vObjPos = position;
-         vObjNormal = normalize( normal );`
+         vObjNormal = normalize( normal );
+         vNormalMat = normalMatrix;`
       );
 
     shader.fragmentShader = shader.fragmentShader
@@ -448,10 +472,13 @@ export function rockMaterial({ dark = false } = {}) {
         `#include <common>
          uniform sampler2D uRock;
          uniform sampler2D uRough;
+         uniform sampler2D uRockN;
+         uniform float uRelieve;
          uniform float uScale;
          uniform vec3 uLichenDir;
          varying vec3 vObjPos;
          varying vec3 vObjNormal;
+         varying mat3 vNormalMat;
 
          vec3 triplanarWeights( vec3 n ) {
            vec3 w = pow( abs( n ), vec3( 4.0 ) );
@@ -498,6 +525,33 @@ export function rockMaterial({ dark = false } = {}) {
       .replace(
         '#include <roughnessmap_fragment>',
         `float roughnessFactor = roughness * triplanar( uRough, vObjPos, triW, uScale ).g;`
+      )
+      // Relieve de la piedra, proyectado como el color.
+      //
+      // Un mapa de normales normal y corriente no vale aquí: estas mallas no
+      // tienen UVs —todo va por proyección triplanar— así que no hay tangentes
+      // que orienten el mapa. Se mezcla al modo «whiteout»: cada una de las
+      // tres proyecciones aporta su pendiente en el plano que le toca y la
+      // componente que sale de ese plano se queda con el signo de la normal de
+      // la pieza. Es la manera estándar y la única que no gira el relieve al
+      // pasar de una cara a otra.
+      //
+      // Va sustituyendo a `normal_fragment_maps`, que sin `normalMap` en el
+      // material compila a nada: así el relieve se aplica DESPUÉS de que
+      // `flatShading` haya sacado la normal de la faceta, y lo que se obtiene
+      // es grano sobre paño, no grano en vez de paño.
+      .replace(
+        '#include <normal_fragment_maps>',
+        `vec3 rocaN = normalize( vObjNormal );
+         vec3 rocaW = triplanarWeights( rocaN );
+         vec3 tnX = texture2D( uRockN, vObjPos.zy * uScale ).xyz * 2.0 - 1.0;
+         vec3 tnY = texture2D( uRockN, vObjPos.xz * uScale ).xyz * 2.0 - 1.0;
+         vec3 tnZ = texture2D( uRockN, vObjPos.xy * uScale ).xyz * 2.0 - 1.0;
+         tnX = vec3( tnX.xy + rocaN.zy, abs( tnX.z ) * rocaN.x );
+         tnY = vec3( tnY.xy + rocaN.xz, abs( tnY.z ) * rocaN.y );
+         tnZ = vec3( tnZ.xy + rocaN.xy, abs( tnZ.z ) * rocaN.z );
+         vec3 rocaObjN = normalize( tnX.zyx * rocaW.x + tnY.xzy * rocaW.y + tnZ.xyz * rocaW.z );
+         normal = normalize( mix( normal, normalize( vNormalMat * rocaObjN ), uRelieve ) );`
       );
   };
 

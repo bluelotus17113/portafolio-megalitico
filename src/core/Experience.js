@@ -18,6 +18,7 @@ import { CameraRig } from '../nav/CameraRig.js';
 import { Interaction } from '../nav/Interaction.js';
 import { esTactil, MandoTactil } from '../nav/MandoTactil.js';
 import { construirColisionadores } from '../nav/Colliders.js';
+import { sembrarCalzos } from '../world/Calzos.js';
 import { Overlay } from '../ui/Overlay.js';
 import { tickMaterials } from '../vfx/materials.js';
 import { aplicarEscena, catalogar } from '../editor/registro.js';
@@ -240,6 +241,11 @@ export class Experience {
     // por qué la isla ha salido de noche, y lo que deja volver a «su» hora
     // después de haber curioseado las otras.
     this.overlay.setTimePhases(World.phases, time.current, faseDeLaHora());
+
+    // Recalce del pie de las piedras de pie. Va después del mundo entero
+    // —necesita las piezas ya colocadas para medir dónde apoya cada una— y
+    // antes del catálogo, para que el editor sepa que existen.
+    sembrarCalzos(this.scene);
 
     // Catálogo de piezas y anulaciones guardadas.
     //
