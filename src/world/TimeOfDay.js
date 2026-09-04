@@ -68,7 +68,16 @@ export const PHASES = [
     skyHorizon: 0x9fd4ea,
     fog: 0x9fd4ea,
     fogDensity: 0.00105,
-    cloudLight: 0xfdfdf8,
+    // Bajado desde 0xfdfdf8, que era blanco puro y a mediodía se comía el
+    // cielo entero: medida la franja alta, salía a (227, 233, 231) con un
+    // 36 % de píxeles por encima de 240 — o sea, una mancha lechosa sin
+    // contorno donde tendría que haber azul con nubes recortadas.
+    //
+    // El blanco puro pega tan fuerte porque no entra una vez sino tres: es el
+    // cogollo de la nube, es hacia donde va el lado que mira al sol, y encima
+    // se le suma el halo. Con 0xecf2f3 la franja queda en (147, 185, 212) y
+    // las nubes siguen leyéndose como nubes iluminadas, no como niebla.
+    cloudLight: 0xecf2f3,
     cloudShade: 0xa9c2da,
     cloudCut: 0.40,
     toonLight: [1.0, 1.0, 1.0],
