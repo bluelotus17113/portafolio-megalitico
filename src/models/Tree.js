@@ -145,6 +145,7 @@ export const SPECIES = {
     trunkShare: 0.52,
     trunkSegments: 5,
     maxDepth: 2,
+    ramillaDesde: 1,   // mata pequeña: todo lo que no sea el tallo es palillo
     laterals: [2, 1],
     forkAtTip: [3, 2],
     branchAngle: 0.92,
@@ -217,6 +218,7 @@ export const SPECIES = {
     trunkShare: 0.55,
     trunkSegments: 4,
     maxDepth: 2,
+    ramillaDesde: 1,   // mata pequeña: todo lo que no sea el tallo es palillo
     laterals: [2, 1],
     forkAtTip: [3, 2],
     branchAngle: 0.78,
@@ -374,10 +376,16 @@ function growSkeleton(profile, random, height) {
   return { branches, leafPoints, baseRadius };
 }
 
-/** Tubo cónico a lo largo de una polilínea. */
-function branchGeometry(branch, radialSegments) {
+/**
+ * Tubo cónico a lo largo de una polilínea.
+ *
+ * `densidad` son los tramos de tubo por punto de la polilínea: dos dibujan la
+ * curva suave que necesita un brazo grueso, uno basta para una ramilla que
+ * nunca ocupa más de unos píxeles.
+ */
+function branchGeometry(branch, radialSegments, densidad = 2) {
   const curve = new THREE.CatmullRomCurve3(branch.points, false, 'centripetal', 0.4);
-  const tubular = Math.max(3, branch.points.length * 2);
+  const tubular = Math.max(3, Math.round(branch.points.length * densidad));
   const geo = new THREE.TubeGeometry(curve, tubular, 1, radialSegments, false);
 
   // TubeGeometry sale con radio constante; el estrechamiento se hace a mano.
@@ -682,9 +690,22 @@ export function createTree({ species = 'roble', seed = 1 } = {}) {
 
   const { branches, leafPoints } = growSkeleton(profile, random, height);
 
-  const parts = branches.map((b) =>
-    branchGeometry(b, b.depth === 0 ? profile.trunkSegments : Math.max(3, profile.trunkSegments - 2))
-  );
+  // Detalle según la profundidad de la rama.
+  //
+  // El tronco y los brazos que salen de él se ven de cerca —al visitante no le
+  // impide nada pararse debajo de un carballo—, así que ahí no se toca nada.
+  // Del segundo nivel para dentro son ramillas de cinco centímetros de grueso
+  // que en el peor encuadre ocupan unos pocos píxeles: darles ocho caras y una
+  // curva suave es gastar triángulos en algo que nadie puede ver.
+  // A partir de `ramillaDesde` una rama es una ramilla: tres caras y sin
+  // curva. En un árbol eso es el segundo nivel; en una mata de brezo de un
+  // metro, el primero — sus «ramas» ya son palillos de un centímetro.
+  const ramillaDesde = profile.ramillaDesde ?? 2;
+  const parts = branches.map((b) => {
+    if (b.depth >= ramillaDesde) return branchGeometry(b, 3, 1);
+    if (b.depth === 0) return branchGeometry(b, profile.trunkSegments);
+    return branchGeometry(b, Math.max(3, profile.trunkSegments - 2));
+  });
   const trunk = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   trunk.computeBoundingSphere();
