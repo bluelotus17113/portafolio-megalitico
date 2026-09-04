@@ -29,6 +29,10 @@ export class TerrainField {
     this.tunnels = [];
     /** Fábrica por encima del terreno sobre la que se anda. Ver `walkHeight`. */
     this.walkways = [];
+    /** Segundas tierras mar adentro. Ver `addIsla`. */
+    this.islas = [];
+    /** Bajíos: barras sumergidas que levantan el fondo. Ver `addBajio`. */
+    this.bajios = [];
   }
 
   /**
@@ -123,8 +127,8 @@ export class TerrainField {
     return WORLD.radius * (1 + wobble);
   }
 
-  /** Altura sin tener en cuenta las explanadas. */
-  baseHeight(x, z) {
+  /** El promontorio a secas: la isla grande y su fondo. */
+  _promontorio(x, z) {
     const d = Math.hypot(x, z);
     const angle = Math.atan2(z, x);
     const edge = this.coastRadius(angle);
@@ -213,6 +217,116 @@ export class TerrainField {
     // mandar el relieve de siempre.
     const blend = smoothstep(inner, inner - 24, d);
     return lerp(Math.min(y, height), y, blend);
+  }
+
+  /**
+   * Segunda tierra mar adentro.
+   *
+   * Se compone con MÁXIMO sobre el promontorio, que es lo único que significa
+   * «hay dos islas»: cada punto del mundo se queda con la más alta de las dos
+   * superficies. Nada más hace falta — y como todo lo demás de este proyecto
+   * pregunta la cota por `height()`, el islote existe de golpe para la malla,
+   * para quien camina, para la hierba y para los espíritus, sin tocar ni uno
+   * de esos ficheros.
+   *
+   * OJO CON EL SITIO: la malla del terreno es una baldosa de 520 × 520, o sea
+   * de -260 a 260. Un islote que se salga de ahí no se teselaría y quedaría
+   * un bulto en el campo de alturas que se puede pisar pero no se ve.
+   */
+  addIsla(x, z, radius, height, seed = 17) {
+    this.islas.push({ x, z, radius, height, seed });
+    return this;
+  }
+
+  /**
+   * Bajío: una barra sumergida que levanta el fondo a lo largo de un segmento.
+   *
+   * Existe por la calzada. Entre el promontorio y el islote el fondo cae a
+   * treinta y tantos metros, y una calzada megalítica sobre pilas de treinta
+   * metros no es una calzada megalítica: es un viaducto. Con la barra el agua
+   * del cruce se queda en tres metros —turquesa, con cáusticas, porque el
+   * shader del mar ya sabe hacer bajío— y las pilas miden lo que mide un
+   * hombre. Es además el motivo por el que alguien construiría ahí y no en
+   * otro sitio.
+   *
+   * Se queda SIEMPRE bajo el agua: si asomara sería un istmo, y entonces la
+   * calzada sobra.
+   */
+  addBajio(ax, az, bx, bz, { halfWidth = 7, blend = 9, depth = -3.2 } = {}) {
+    this.bajios.push({ ax, az, bx, bz, halfWidth, blend, depth });
+    return this;
+  }
+
+  /** Altura sin tener en cuenta las explanadas. */
+  baseHeight(x, z) {
+    const y = this._promontorio(x, z);
+    if (this.islas.length === 0 && this.bajios.length === 0) return y;
+    return Math.max(y, this._islotes(x, z), this._barras(x, z));
+  }
+
+  /**
+   * Perfil de los islotes.
+   *
+   * NO es la receta del promontorio en pequeño, y ese fue el primer intento:
+   * copiar `land` + `_rasa` con los mismos números daba un champiñón. La rasa
+   * de la isla grande labra un rellano de veinte metros, que sobre un radio de
+   * 168 es un detalle de orilla y sobre uno de 34 es media isla — salía un ala
+   * plana de quince metros con un cono encima, como un sombrero.
+   *
+   * Aquí manda una CÚPULA: `1 - dn²` elevado a un exponente, que es una peña
+   * redondeada de una pieza. El exponente decide de qué va el islote — por
+   * debajo de 1 sale una aguja, por encima de 1,4 una loma— y con 1,15 sale una
+   * peña de paredes francas y una plataforma pequeña arriba, que es donde cabe
+   * el dolmen.
+   */
+  _islotes(x, z) {
+    let mejor = -Infinity;
+    for (const i of this.islas) {
+      const d = Math.hypot(x - i.x, z - i.z);
+      if (d > i.radius * 2.15) continue;
+      const dn = d / i.radius;
+
+      const domo = Math.pow(Math.max(0, 1 - dn * dn), 1.15);
+      // El relieve se apaga hacia el borde: con amplitud constante, el ruido
+      // abría boquetes por debajo del agua justo en la línea de costa y el
+      // islote salía mordido.
+      const relieve =
+        (this.noise.fbm(x * 0.026, z * 0.026, i.seed, 3, 2.1, 0.5) * 0.22 +
+          this.detail.fbm(x * 0.075, z * 0.075, i.seed + 3, 2, 2.3, 0.45) * 0.07) *
+        i.height *
+        (0.25 + 0.75 * domo);
+
+      let y = i.height * domo + relieve;
+
+      // Falda: fuera del islote se hunde por debajo del lecho, para perder
+      // siempre el máximo contra el fondo de verdad. Ver `baseHeight`.
+      //
+      // Se tiende hasta dn = 1,9 y no hasta 1,45. Cayendo deprisa, la malla
+      // —1,35 m por cuadro— dibujaba esa pared casi vertical como un anillo
+      // plano justo bajo la superficie, y el islote se leía como un champiñón
+      // recortado posado en el agua en vez de como una peña que sale del
+      // fondo. Tendida, el apron llega a -36 a cuarenta y cinco metros y se
+      // funde con el lecho de verdad, que anda por -45.
+      y -= smoothstep(0.96, 1.9, dn) * 70;
+
+      if (y > mejor) mejor = y;
+    }
+    return mejor;
+  }
+
+  /** Perfil de los bajíos. */
+  _barras(x, z) {
+    let mejor = -Infinity;
+    for (const b of this.bajios) {
+      const [, d] = this._onSegment(x, z, b);
+      if (d > b.halfWidth + b.blend) continue;
+      const k = smoothstep(b.halfWidth + b.blend, b.halfWidth, d);
+      // Un rizo para que no sea una cinta recta de fondo de piscina.
+      const rizo = this.detail.fbm(x * 0.032, z * 0.032, 41.7, 2, 2.2, 0.5) * 1.15;
+      const y = lerp(-42, b.depth + rizo, k);
+      if (y > mejor) mejor = y;
+    }
+    return mejor;
   }
 
   /**

@@ -19,6 +19,8 @@ import { createLeyLine, createLeyRing } from '../vfx/LeyLines.js';
 import { pathRoute, polarRoute, pathKeepOut, createPaths, createPathKerb, routeClimb } from './Paths.js';
 import { setToonSun, setToonCloudMap, tickToonClouds } from '../vfx/toon.js';
 import { TimeOfDay, PHASES } from './TimeOfDay.js';
+import { createCalzada, createEscalinata, calzadaKeepOut } from './Calzada.js';
+import { createDolmen, DOLMEN_RADIO } from '../models/Dolmen.js';
 import { ESTACIONES } from './Estaciones.js';
 import { createDais } from '../models/Dais.js';
 import { createTrilithon } from '../models/Megaliths.js';
@@ -43,7 +45,7 @@ import {
   stairwayWalkways,
 } from '../models/Stairway.js';
 import { runeStone, RUNE_MOTIFS } from '../models/Carving.js';
-import { HOME_VIEW, PALETTE, SECTIONS, SEED, WORLD, QUALITY, DAIS, daisOuterRadius } from '../config.js';
+import { HOME_VIEW, ISLOTE, PALETTE, SECTIONS, SEED, WORLD, QUALITY, DAIS, daisOuterRadius } from '../config.js';
 import { makeRandom } from '../utils/noise.js';
 import { cloudTexture } from '../utils/textures.js';
 
@@ -128,6 +130,7 @@ export class World {
       { label: 'Grabando las piedras', run: () => this._buildRuneStones() },
       { label: 'Plantando el arbolado', run: () => this._buildForest() },
       { label: 'Tendiendo las líneas ley', run: () => this._buildLeyLines() },
+      { label: 'Echando la calzada al islote', run: () => this._buildIslote() },
       { label: 'Soltando el viento', run: () => this._buildAtmosphere() },
       { label: 'Despertando a la gente del cerro', run: () => this._buildEspiritus() },
       { label: 'Ajustando la luz', run: () => this._buildLights() },
@@ -167,6 +170,66 @@ export class World {
     for (const w of stairwayWalkways(this.field)) {
       this.field.addWalkway(w.ax, w.az, w.bx, w.bz, w);
     }
+
+    // El islote y el bajío por el que va la calzada. Aquí por lo mismo que el
+    // cerro: el campo de alturas se lee UNA vez, y una segunda tierra
+    // registrada después saldría en el andar pero no en la malla — se podría
+    // caminar sobre agua.
+    const c = Math.cos(ISLOTE.rumbo);
+    const s = Math.sin(ISLOTE.rumbo);
+    this.isloteCentro = new THREE.Vector2(c * ISLOTE.distancia, s * ISLOTE.distancia);
+    this.field.addIsla(
+      this.isloteCentro.x,
+      this.isloteCentro.y,
+      ISLOTE.radius,
+      ISLOTE.altura,
+      SEED % 977
+    );
+    // La barra arranca dentro de la isla grande, no en la orilla: naciendo
+    // justo en la costa, el bajío empieza donde el fondo ya está cayendo y el
+    // primer vano de la calzada se quedaba con nueve metros de agua debajo.
+    const costa = this.field.coastRadius(ISLOTE.rumbo);
+    this.field.addBajio(
+      c * (costa - 14),
+      s * (costa - 14),
+      this.isloteCentro.x,
+      this.isloteCentro.y,
+      ISLOTE.bajio
+    );
+
+    // Desmonte para la escalinata, ANTES de teselar y antes de la explanada.
+    //
+    // No basta con posar peldaños sobre la ladera: `walkHeight` devuelve el
+    // MÁXIMO entre el terreno y la pasarela —una pasarela por debajo del suelo
+    // abriría una zanja invisible—, así que unos peldaños tendidos sobre una
+    // ladera que sube más deprisa que ellos quedan enterrados y no los pisa
+    // nadie. Medido: la escalera iba a 9,5 donde el terreno estaba a 10,85.
+    // Hay que EXCAVAR el corredor, que es lo mismo que hace la escalinata de
+    // Habilidades con `stairwayCuts`.
+    const pieD = (() => {
+      // Dónde pisa tierra quien acaba de cruzar: primer punto del islote por
+      // encima de la cota a la que llega la calzada.
+      for (let d = ISLOTE.distancia - ISLOTE.radius - 8; d < ISLOTE.distancia; d += 0.5) {
+        if (this.field.baseHeight(c * d, s * d) > 4.4) return d;
+      }
+      return ISLOTE.distancia - ISLOTE.radius;
+    })();
+    const cimaD = ISLOTE.distancia - 7;
+    const cimaY = this.field.baseHeight(c * cimaD, s * cimaD);
+    this.escalinataPlan = { pieD, cimaD, pieY: 4.4, cimaY };
+    this.field.addCut(c * pieD, s * pieD, c * cimaD, s * cimaD, {
+      halfWidth: 3.0,
+      blend: 6.0,
+      floorA: 4.4,
+      floorB: cimaY,
+    });
+
+    // Explanada bajo el dolmen. Lo mismo que llevan los cinco santuarios, y
+    // por lo mismo: medido, el terreno del islote sube dos metros en los cinco
+    // de huella del dolmen, así que la jamba de atrás quedaba enterrada 1,79 de
+    // sus 1,94 y del monumento solo asomaba la cubierta tirada en la hierba.
+    // Un megalito se planta a nivel — es lo primero que hace quien lo levanta.
+    this.field.addPad(this.isloteCentro.x, this.isloteCentro.y, 6.5, 11);
 
     this._traceRoutes();
   }
@@ -358,6 +421,18 @@ export class World {
       // Y la escalinata a Habilidades, por lo mismo: cuarenta metros de peldaños
       // con matorral creciendo entre ellos no se leen como obra.
       ...stairwayKeepOut(this.field),
+      // El arranque de la calzada. La hierba se para en `WORLD.radius * 1.02`
+      // y el estribo cae justo ahí: sin esto, las últimas briznas brotan a
+      // través de la primera losa.
+      ...calzadaKeepOut(this.field, ISLOTE),
+      // Y el dolmen, que está en el islote y por tanto fuera del alcance de la
+      // hierba — pero el pedregal sí llega, y una tumba con cuatro bolos
+      // dentro de la cámara no se lee como una tumba.
+      {
+        x: Math.cos(ISLOTE.rumbo) * ISLOTE.distancia,
+        z: Math.sin(ISLOTE.rumbo) * ISLOTE.distancia,
+        radius: DOLMEN_RADIO,
+      },
     ];
   }
 
@@ -724,6 +799,64 @@ export class World {
 
     this.scene.add(group);
     this.ley = group;
+  }
+
+  /**
+   * La calzada y lo que hay al otro lado.
+   *
+   * Va después del arbolado porque no lo necesita para nada, y antes de los
+   * espíritus porque el dolmen es un ancla más a la que acudir.
+   */
+  _buildIslote() {
+    this.calzada = createCalzada(this.field, {
+      rumbo: ISLOTE.rumbo,
+      distancia: ISLOTE.distancia,
+      ancho: ISLOTE.calzada.ancho,
+      tramo: ISLOTE.calzada.tramo,
+    });
+    this.scene.add(this.calzada);
+
+    // Y la escalinata desde el desembarco hasta la explanada del dolmen. Ver
+    // `createEscalinata`: sin ella se cruza el puente y no se puede subir, que
+    // es peor que no tener puente.
+    const plan = this.escalinataPlan;
+    this.escalinata = createEscalinata(this.field, {
+      rumbo: ISLOTE.rumbo,
+      desdeD: plan.pieD,
+      hastaD: plan.cimaD,
+      cotaSalida: plan.pieY,
+      cotaLlegada: plan.cimaY,
+    });
+    this.scene.add(this.escalinata);
+
+    // El dolmen, en la cima. Mira hacia la calzada: la boca de una cámara da
+    // a donde llega la gente, no al mar abierto.
+    const centro = this.isloteCentro;
+    const cima = this.field.height(centro.x, centro.y);
+    this.dolmen = createDolmen({ rumbo: ISLOTE.rumbo + Math.PI, escala: 1.15, seed: SEED % 733 });
+    this.dolmen.position.set(centro.x, cima, centro.y);
+    this.scene.add(this.dolmen);
+
+    // Cuatro bolos sueltos por la ladera. El islote queda fuera del radio de
+    // la hierba y del arbolado —los dos se paran en `WORLD.radius`— así que es
+    // roca pelada, y eso está bien: contrasta con el prado y dice que ahí no
+    // vive nadie. Pero pelado del todo se lee como terreno sin terminar.
+    const rnd = makeRandom(SEED % 401);
+    for (let i = 0; i < 4; i++) {
+      const ang = rnd() * Math.PI * 2;
+      const r = ISLOTE.radius * (0.30 + rnd() * 0.42);
+      const x = centro.x + Math.cos(ang) * r;
+      const z = centro.y + Math.sin(ang) * r;
+      const y = this.field.height(x, z);
+      if (y < 1.2) continue;
+      const bolo = createBoulder({ radius: 0.9 + rnd() * 1.5, seed: SEED + 500 + i, detail: 3 });
+      const malla = stoneMesh(bolo, { dark: rnd() > 0.5, name: `islote-bolo-${i}` });
+      // Por la base, como todo lo que sale de `StoneFactory`. Un cuarto de
+      // metro enterrado para que no se vea flotar el canto.
+      malla.position.set(x, y - 0.3, z);
+      malla.rotation.set(rnd() * 0.4, rnd() * Math.PI * 2, rnd() * 0.4);
+      this.scene.add(malla);
+    }
   }
 
   _buildAtmosphere() {

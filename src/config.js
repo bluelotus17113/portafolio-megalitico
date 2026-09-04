@@ -122,6 +122,57 @@ export const WORLD = {
  * a la izquierda contra el mar, y "Proyectos", "Habilidades" y "Trayectoria"
  * a la derecha sobre las colinas. Cambiar una obliga a revisar el conjunto.
  */
+/**
+ * El islote y su calzada.
+ *
+ * La dirección está MEDIDA, no elegida. Se lanza un rayo desde el mirador a la
+ * cima para cada rumbo y se mira cuánto lo corta la isla; contando también el
+ * arbolado, que es lo que decide. El primer intento fue 2,47 —justo hacia
+ * donde apunta la cámara— y era el sitio equivocado: la vista salía limpia
+ * mientras el rayo solo miraba el terreno, y con las copas puestas el islote
+ * caía dos dedos por debajo de la línea de árboles del borde. Existía, se
+ * proyectaba al centro del cuadro y no se veía.
+ *
+ * A 2,60 el rayo va tapado un 2 % contra el 8-21 % de todos los demás rumbos,
+ * y no es casualidad: ahí la costa se retira a 162 en vez de a 175. Es una
+ * ensenada, o sea el único hueco por el que de verdad se ve el mar abierto
+ * desde donde aterriza el visitante.
+ *
+ * El radio y la distancia están topados por la malla del terreno, que es una
+ * baldosa de 520 × 520. Con el centro a 250 el islote ocupa x ∈ [-230, -162],
+ * z ∈ [122, 190]: dentro con holgura, así que lo tesela la malla que ya
+ * existe y no hace falta una segunda.
+ */
+export const ISLOTE = {
+  /** Hacia dónde, en radianes. Medido, no elegido a ojo. */
+  rumbo: 2.75,
+  /** A qué distancia del centro de la isla grande. La costa está en 174. */
+  distancia: 240,
+  radius: 30,
+  /**
+   * Cota de la cima.
+   *
+   * Empezó en 21 y no se veía, y el motivo es puramente geométrico: desde el
+   * mirador se mira desde 88 m de altura y ligeramente hacia abajo, así que un
+   * islote bajo a ochenta metros de la orilla se proyecta EN la banda de copas
+   * del propio borde de la isla. Medido: caía en y≈224 de un cuadro de 660, y
+   * ahí lo que hay son árboles. Da igual el rumbo — se probaron los veintisiete
+   * que caben en el encuadre y los veintisiete daban en verde.
+   *
+   * Subirlo a 42 tampoco era la respuesta: con radio 30 sale un cono de
+   * paredes rectas —una pantalla de lámpara— y la calzada tiene que trepar
+   * ocho metros para tocarlo. La respuesta es el SITIO, no la altura: a 2,75
+   * hay un hueco por el que se ve mar abierto entre las copas, medido
+   * proyectando cada rumbo candidato sobre una captura real y mirando qué
+   * píxel hay ahí. Sobre ese hueco un islote de veintidós metros se ve entero.
+   */
+  altura: 22,
+  /** Ancho del bajío por el que va la calzada, y a qué profundidad lo deja. */
+  bajio: { halfWidth: 8, blend: 11, depth: -3.0 },
+  /** Ancho de la losa de la calzada y cada cuánto va una pila. */
+  calzada: { ancho: 4.6, tramo: 5.2 },
+};
+
 export const SECTIONS = [
   {
     id: 'about',
