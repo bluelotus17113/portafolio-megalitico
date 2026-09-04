@@ -108,6 +108,11 @@
       <div id="menu" class="menu" hidden>
         <ul class="menu__list"></ul>
         <div class="menu__foot">
+          <!-- El modo a pie tenía una sola puerta, la tecla C, y en un móvil
+               eso es no tener ninguna. -->
+          <button class="menu__mode" type="button" data-action="walk">
+            Caminar por la isla <kbd>C</kbd>
+          </button>
           <button class="menu__mode" type="button" data-action="free">
             Vuelo libre <kbd>F</kbd>
           </button>
@@ -153,6 +158,8 @@
             <dt><kbd>C</kbd></dt><dd>Caminar — <kbd>W A S D</kbd>, <kbd>Mayús</kbd> para correr</dd>
             <dt><kbd>F</kbd></dt><dd>Vuelo libre — <kbd>W A S D</kbd>, <kbd>Espacio</kbd>, <kbd>Ctrl</kbd></dd>
             <dt><kbd>Esc</kbd></dt><dd>Volver al mirador</dd>
+            <dt class="solo-tactil">Con el dedo</dt>
+            <dd class="solo-tactil">Palanca abajo a la izquierda para andar; arrastra para mirar</dd>
           </dl>
           <button class="help__close" type="button">Entendido</button>
         </div>

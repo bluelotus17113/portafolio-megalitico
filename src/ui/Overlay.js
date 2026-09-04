@@ -135,6 +135,11 @@ export class Overlay {
       this.toggleMenu(false);
     });
 
+    this.ui.querySelector('[data-action="walk"]').addEventListener('click', () => {
+      this.cb.onToggleWalk?.();
+      this.toggleMenu(false);
+    });
+
     this.ui.querySelector('[data-action="free"]').addEventListener('click', () => {
       this.cb.onToggleFree?.();
       this.toggleMenu(false);

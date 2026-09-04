@@ -23,6 +23,7 @@
 
 import * as THREE from 'three';
 import { clamp, damp } from '../utils/noise.js';
+import { capturar, esTactil } from './MandoTactil.js';
 import { WORLD } from '../config.js';
 
 const MIN_POLAR = 0.16;
@@ -123,6 +124,18 @@ export class CameraRig {
       colisionadores: null,
     };
 
+    /**
+     * Palanca táctil, en coordenadas de pantalla: `x` a la derecha, `y` hacia
+     * abajo, los dos en [-1, 1]. La escribe `MandoTactil`; aquí solo se lee.
+     */
+    this.palanca = { x: 0, y: 0 };
+    /** Dedo que está girando la cabeza cuando no hay bloqueo de puntero. */
+    this._mirada = null;
+    /** En táctil no se pide el bloqueo del puntero: no existe. */
+    this.tactil = esTactil();
+    /** Aviso de cambio de modo. Lo usa `Experience` para enseñar el mando. */
+    this.onModo = null;
+
     this._pointers = new Map();
     this._pinchDistance = 0;
     this._dragging = false;
@@ -140,11 +153,22 @@ export class CameraRig {
     this._onPointerDown = (e) => {
       if (!this.enabled) return;
       if (this.enPrimeraPersona) {
+        // Con el dedo se mira arrastrando.
+        //
+        // No es una alternativa cómoda al bloqueo del puntero: es la única.
+        // Sin bloqueo no hay `movementX`, y el bloqueo en un móvil no se
+        // concede nunca. Así que se guarda qué dedo empezó el arrastre y los
+        // desplazamientos se cuentan a mano.
+        if (e.pointerType === 'touch') {
+          this._mirada = { id: e.pointerId, x: e.clientX, y: e.clientY };
+          capturar(dom, e.pointerId);
+          return;
+        }
         // Red de seguridad: el bloqueo del puntero se pierde solo —al cambiar
         // de pestaña, al pulsar Esc, o si el navegador no lo concedió en su
         // momento— y sin él el ratón deja de girar la cabeza. Un clic en la
         // escena lo recupera, que es lo que cualquiera intenta primero.
-        if (!this.free.pointerLocked) dom.requestPointerLock?.();
+        if (!this.free.pointerLocked) this._pedirBloqueo();
         return;
       }
       dom.setPointerCapture?.(e.pointerId);
@@ -161,6 +185,19 @@ export class CameraRig {
 
     this._onPointerMove = (e) => {
       if (this.enPrimeraPersona) {
+        const mirada = this._mirada;
+        if (mirada && e.pointerId === mirada.id) {
+          const dx = e.clientX - mirada.x;
+          const dy = e.clientY - mirada.y;
+          mirada.x = e.clientX;
+          mirada.y = e.clientY;
+          // Casi el doble de sensible que el ratón: el dedo tiene mucho menos
+          // recorrido que una alfombrilla, y con la ganancia del ratón hacen
+          // falta cuatro arrastres para darse la vuelta.
+          this.free.yaw -= dx * 0.0040;
+          this.free.pitch = clamp(this.free.pitch - dy * 0.0040, -1.35, 1.35);
+          return;
+        }
         if (!this.free.pointerLocked) return;
         this.free.yaw -= e.movementX * 0.0022;
         this.free.pitch = clamp(this.free.pitch - e.movementY * 0.0022, -1.35, 1.35);
@@ -194,6 +231,7 @@ export class CameraRig {
     };
 
     this._onPointerUp = (e) => {
+      if (this._mirada?.id === e.pointerId) this._mirada = null;
       this._pointers.delete(e.pointerId);
       if (this._pointers.size === 0) {
         this._dragging = false;
@@ -363,8 +401,11 @@ export class CameraRig {
         this.free.pitch = clamp(this.free.pitch, -0.35, 0.2);
         this._posarEnSuelo();
       }
-      this.dom.requestPointerLock?.();
+      this._pedirBloqueo();
     } else {
+      this._mirada = null;
+      this.palanca.x = 0;
+      this.palanca.y = 0;
       document.exitPointerLock?.();
       // Reconstruye la órbita mirando hacia delante desde donde quedó.
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -381,6 +422,24 @@ export class CameraRig {
       this.smooth.polar = this.polar;
     }
     this.mode = mode;
+    this.onModo?.(mode);
+  }
+
+  /**
+   * Pide el bloqueo del puntero sin romperse si no lo hay.
+   *
+   * En táctil ni se pide —no existe—, y donde sí existe la llamada devuelve
+   * una promesa que el navegador rechaza cuando el documento acaba de perder
+   * el foco. Sin el `catch` eso sale por consola como un error sin capturar
+   * que no significa nada y que hace fallar las pruebas de consola limpia.
+   */
+  _pedirBloqueo() {
+    if (this.tactil) return;
+    try {
+      this.dom.requestPointerLock?.()?.catch?.(() => {});
+    } catch {
+      /* sin bloqueo se sigue: en órbita no hace falta y a pie queda el dedo */
+    }
   }
 
   // ---------------------------------------------------------------- update
@@ -562,9 +621,25 @@ export class CameraRig {
     if (f.keys.has('KeyD') || f.keys.has('ArrowRight')) wish.add(right);
     if (f.keys.has('KeyA') || f.keys.has('ArrowLeft')) wish.sub(right);
 
-    const andando = wish.lengthSq() > 0;
-    const velocidad = w.paso * (f.keys.has('Shift') ? w.carrera : 1);
-    if (andando) wish.normalize().multiplyScalar(velocidad);
+    const conTeclas = wish.lengthSq() > 0;
+
+    // La palanca táctil SE SUMA al teclado en vez de sustituirlo: así hay un
+    // solo camino de código que probar, y en un aparato con las dos cosas no
+    // hay que decidir cuál manda.
+    const palanca = Math.min(1, Math.hypot(this.palanca.x, this.palanca.y));
+    if (palanca > 0.02) {
+      wish.addScaledVector(forward, -this.palanca.y);
+      wish.addScaledVector(right, this.palanca.x);
+    }
+
+    // Cuánto se empuja. El teclado es todo o nada; la palanca dosifica, que es
+    // lo que hace que con el dedo se pueda ir despacio hasta el borde del
+    // acantilado en vez de solo a paso ligero.
+    const empuje = Math.max(conTeclas ? 1 : 0, palanca);
+    const andando = empuje > 0.02;
+    // Se corre con Mayús o llevando la palanca al borde del aro.
+    const velocidad = w.paso * (f.keys.has('Shift') || palanca > 0.96 ? w.carrera : 1);
+    if (andando) wish.normalize().multiplyScalar(velocidad * empuje);
 
     // Arranque y frenada con algo de peso, pero mucho más secos que en vuelo:
     // un cuerpo no derrapa.

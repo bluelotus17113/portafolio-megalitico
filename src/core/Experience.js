@@ -15,6 +15,7 @@ import { PostFX } from './PostFX.js';
 import { World } from '../world/World.js';
 import { CameraRig } from '../nav/CameraRig.js';
 import { Interaction } from '../nav/Interaction.js';
+import { esTactil, MandoTactil } from '../nav/MandoTactil.js';
 import { construirColisionadores } from '../nav/Colliders.js';
 import { Overlay } from '../ui/Overlay.js';
 import { tickMaterials } from '../vfx/materials.js';
@@ -62,6 +63,7 @@ export class Experience {
       onEnter: () => this.enter(),
       onNavigate: (id) => this.goTo(id),
       onToggleFree: () => this.toggleFreeFlight(),
+      onToggleWalk: () => this.toggleWalk(),
       onPanelClose: () => this.clearSelection(),
       onTimeOfDay: (id) => this.world?.time?.set(id),
     });
@@ -236,6 +238,17 @@ export class Experience {
     this.rig.walk.colisionadores = construirColisionadores(this.scene);
     this.rig.snapTo(this.homeView);
     this.rig.enabled = false; // hasta que se pulse "Explorar"
+
+    // El mando a pie, solo donde manda el dedo. Se cuelga de `#ui` para que
+    // desaparezca con el resto de la interfaz, y se enseña y se esconde con
+    // el aviso de cambio de modo del propio rig: así da igual por dónde se
+    // entre o se salga —la tecla C, el menú, Esc o el botón Salir—, que hay
+    // un solo sitio que decide si el mando se ve.
+    if (esTactil()) {
+      this.mando = new MandoTactil(this.rig, { onSalir: () => this.toggleWalk() });
+      this.mando.montar(this.overlay.ui);
+      this.rig.onModo = (modo) => this.mando.mostrar(modo === 'walk');
+    }
 
     this.interaction = new Interaction(this.camera, this.canvas, this.world.hotspotObjects);
     this.interaction.enabled = false;
@@ -422,7 +435,11 @@ export class Experience {
     }
     this.rig.setMode('walk');
     this.overlay.close();
-    this.overlay.setTooltip('A pie · W A S D · Mayús para correr · Esc para salir');
+    this.overlay.setTooltip(
+      esTactil()
+        ? 'A pie · palanca para andar · arrastra para mirar'
+        : 'A pie · W A S D · Mayús para correr · Esc para salir'
+    );
   }
 
   /** @param {string|null} id  null = volver al mirador central. */

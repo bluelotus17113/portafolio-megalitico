@@ -1042,3 +1042,99 @@ to   { opacity: 1; transform: none; }
   }
 }
 
+
+/* ─────────────────────────── Mando táctil ─────────────────────────────
+   Solo aparece en modo a pie y solo donde manda el dedo. La capa no
+   intercepta nada —el resto de la pantalla tiene que seguir sirviendo para
+   mirar arrastrando—, así que `pointer-events` se enciende pieza a pieza. */
+
+.mando {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.mando__base {
+  position: absolute;
+  left: max(var(--pad), env(safe-area-inset-left));
+  /* Por encima de la barra de estado: la palanca y los botones del momento
+     del día se pisaban en pantallas bajas. */
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 58px);
+  width: clamp(116px, 27vw, 164px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: auto;
+  /* Sin esto el navegador se queda el arrastre para hacer scroll y la
+     palanca solo responde al primer píxel. */
+  touch-action: none;
+  animation: rise 0.4s var(--ease);
+}
+
+.mando__aro {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  border: 1px dashed var(--line);
+  opacity: 0.7;
+}
+
+.mando__pomo {
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: radial-gradient(circle at 38% 34%, rgba(79, 230, 216, 0.34), rgba(8, 16, 20, 0.9) 70%);
+  box-shadow: 0 0 18px rgba(79, 230, 216, 0.18);
+  /* Lo mueve `MandoTactil` con `transform`, que no reordena nada: la palanca
+     se sigue a 60 fps sin tocar el layout. */
+  transition: transform 0.12s var(--ease);
+}
+
+.mando__base:active .mando__pomo {
+  transition: none;
+  border-color: var(--arcane);
+}
+
+.mando__salir {
+  position: absolute;
+  right: max(var(--pad), env(safe-area-inset-right));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 58px);
+  padding: 12px 22px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink-dim);
+  font-family: var(--serif);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: rise 0.4s var(--ease);
+}
+
+.mando__salir:active {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+/* La línea de la ayuda que habla del dedo sobra en un escritorio: ahí no hay
+   mando, y la lista de controles se lee mejor sin una fila que no aplica. */
+.solo-tactil {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .solo-tactil {
+    display: revert;
+  }
+}
