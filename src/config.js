@@ -210,4 +210,8 @@ export const QUALITY = {
   // triángulos y siguen cabiendo todas en un solo draw call sin sombras.
   grassBlades: 110000,
   motes: 2600,
+  // Aos sí. Son pocos a propósito: cada uno piensa por su cuenta y lo que los
+  // hace leerse como seres es que se les pueda seguir uno. Con doscientos
+  // vuelven a ser un sistema de partículas.
+  espiritus: 26,
 };

@@ -6,7 +6,12 @@
  * escribirlas a mano sería dieciséis paletas que se desincronizan a la primera
  * corrección; como capa se escriben cuatro y cuatro, y las dieciséis salen
  * solas. Lo que aporta cada una es poco a propósito: tinte de hoja, tinte de
- * hierba, calidez de la tierra, cuánta flor y cuánta bruma.
+ * hierba, calidez de la tierra, cuánta flor, cuánta bruma y cuánto velo.
+ *
+ * El `velo` es el único número de la tabla que no es óptico: dice cuánto se
+ * abre el paso a los aos sí (`vfx/Espiritus.js`). No sigue la curva de las
+ * otras columnas y no debe seguirla — el otoño es su máximo por Samhain, no
+ * por la temperatura.
  *
  * El VERANO es el neutro —todos los multiplicadores a 1— y eso no es pereza:
  * la isla que ya existía está calibrada contra fotos de referencia, medida
@@ -56,6 +61,8 @@ export const ESTACIONES = [
     flor: 1.6,
     seco: 0,
     bruma: 1.0,
+    // Beltane, primeros de mayo: la otra fiesta en que se abre el velo.
+    velo: 1.1,
   },
   {
     id: 'verano',
@@ -67,6 +74,7 @@ export const ESTACIONES = [
     flor: 1,
     seco: 0,
     bruma: 1.0,
+    velo: 0.75,
   },
   {
     id: 'otono',
@@ -92,6 +100,11 @@ export const ESTACIONES = [
     flor: 0.3,
     seco: 0.22,
     bruma: 1.2,
+    // Samhain, finales de octubre: el velo entre los dos mundos está más fino
+    // que en ningún otro momento del año. Por eso el otoño es el PICO de
+    // espíritus y no un punto medio entre el verano y el invierno — la lógica
+    // de esta columna no es la del termómetro.
+    velo: 1.35,
   },
   {
     id: 'invierno',
@@ -105,6 +118,8 @@ export const ESTACIONES = [
     tierra: [1.15, 0.86, 0.80],
     flor: 0,
     seco: 0.70,
+    // Encerrados en el cerro. El invierno es de la Cailleach, no de ellos.
+    velo: 0.55,
     // Bruma espesa: es la mitad del invierno atlántico y encima tapa el fondo,
     // que es donde está el bosque — el invierno sale más barato de dibujar.
     bruma: 1.5,

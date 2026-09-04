@@ -13,6 +13,7 @@ import { Ocean } from './Ocean.js';
 import { Sky } from './Sky.js';
 import { createGrass } from './Grass.js';
 import { createMotes, createBirds } from '../vfx/Atmosphere.js';
+import { Espiritus } from '../vfx/Espiritus.js';
 import { Forest, forestKeepOut } from './Forest.js';
 import { createLeyLine, createLeyRing } from '../vfx/LeyLines.js';
 import { pathRoute, polarRoute, pathKeepOut, createPaths, createPathKerb, routeClimb } from './Paths.js';
@@ -128,6 +129,7 @@ export class World {
       { label: 'Plantando el arbolado', run: () => this._buildForest() },
       { label: 'Tendiendo las líneas ley', run: () => this._buildLeyLines() },
       { label: 'Soltando el viento', run: () => this._buildAtmosphere() },
+      { label: 'Despertando a la gente del cerro', run: () => this._buildEspiritus() },
       { label: 'Ajustando la luz', run: () => this._buildLights() },
     ];
   }
@@ -733,6 +735,29 @@ export class World {
     this.scene.add(this.birds);
   }
 
+  /**
+   * Los aos sí.
+   *
+   * Va después de los santuarios Y del souterrain, y no es un capricho del
+   * orden: necesitan las dos cosas. Las anclas por las que se reparten son los
+   * monumentos, y el hogar del que salen es la boca del pasadizo — un síd ES
+   * un túmulo, así que la casa de la gente del cerro tenía que ser el cerro
+   * que ya había.
+   */
+  _buildEspiritus() {
+    const [boca] = souterrainMouths();
+    const hogar = new THREE.Vector3(boca.x, this.field.height(boca.x, boca.y) + 2, boca.y);
+
+    const anclas = this.shrines.map((s) => ({ id: s.id, pos: s.group.position.clone() }));
+    anclas.push({ id: 'cerro', pos: hogar.clone() });
+    anclas.push({ id: 'plaza', pos: new THREE.Vector3(0, this.field.height(0, 0) + 2, 0) });
+
+    const count =
+      this.quality === 'high' ? QUALITY.espiritus : Math.round(QUALITY.espiritus * 0.5);
+    this.espiritus = new Espiritus(this.field, { count, hogar, anclas });
+    this.scene.add(this.espiritus.group);
+  }
+
   _buildLights() {
     const sunDir = this.sky.sunDirection;
 
@@ -812,6 +837,19 @@ export class World {
     tickToonClouds(dt);
 
     for (const shrine of this.shrines) shrine.update(dt, context);
+
+    // Cuántos hay despiertos sale de multiplicar la hora por la estación, y las
+    // dos ya vienen interpoladas por `TimeOfDay`: al cambiar de momento o de
+    // estación, salen o se meten en el cerro solos, sin un caso especial aquí.
+    if (this.espiritus) {
+      const sidhe = this.time?.value.sidhe ?? 0.35;
+      const velo = this.time?.estacionValor.velo ?? 1;
+      this.espiritus.update(dt, {
+        camera: ctx.camera,
+        activeSection: ctx.activeSection,
+        presencia: sidhe * velo,
+      });
+    }
 
     // La sombra acompaña al punto que mira la cámara.
     if (this.sun) {

@@ -54,6 +54,8 @@ export const PHASES = [
     foam: 0xffeede,
     grassShadow: 0x123a56,
     stars: 0.12,
+    // El alba es liminal por el otro lado: se están retirando.
+    sidhe: 0.55,
     bloom: 0.52,
     exposure: 1.02,
   },
@@ -78,6 +80,8 @@ export const PHASES = [
     foam: 0xf2fbfd,
     grassShadow: 0x00344b,
     stars: 0,
+    // El mediodía es de los humanos. Queda alguno rezagado a la sombra.
+    sidhe: 0.10,
     bloom: 0.40,
     exposure: 1.0,
   },
@@ -104,6 +108,8 @@ export const PHASES = [
     foam: 0xffe9d2,
     grassShadow: 0x1a2f52,
     stars: 0.22,
+    // Su hora. Ni de día ni de noche, que es de lo que va todo esto.
+    sidhe: 0.85,
     bloom: 0.62,
     exposure: 1.05,
   },
@@ -132,6 +138,7 @@ export const PHASES = [
     foam: 0x9dbfd4,
     grassShadow: 0x081a33,
     stars: 1.0,
+    sidhe: 1.0,
     // El bloom baja al oscurecerse la isla: florece sobre lo que ya hay, y con
     // la escena tres veces más oscura la misma fuerza pesa el triple.
     bloom: 0.72,
@@ -143,7 +150,7 @@ const COLOR_KEYS = [
   'sunColor', 'skyTop', 'skyHorizon', 'fog', 'cloudLight', 'cloudShade',
   'oceanDeep', 'oceanShallow', 'oceanClear', 'caustic', 'foam', 'grassShadow',
 ];
-const NUMBER_KEYS = ['fogDensity', 'cloudCut', 'stars', 'bloom', 'exposure'];
+const NUMBER_KEYS = ['fogDensity', 'cloudCut', 'stars', 'bloom', 'exposure', 'sidhe'];
 
 /**
  * Qué momento del día es AHORA donde está quien mira.
@@ -209,6 +216,7 @@ export class TimeOfDay {
       flor: this.estacion.flor,
       seco: this.estacion.seco,
       bruma: this.estacion.bruma,
+      velo: this.estacion.velo,
     };
 
     this._apply();
@@ -240,6 +248,7 @@ export class TimeOfDay {
       v.flor = estacion.flor;
       v.seco = estacion.seco;
       v.bruma = estacion.bruma;
+      v.velo = estacion.velo;
       this._apply();
     }
     return true;
@@ -295,6 +304,7 @@ export class TimeOfDay {
     v.flor += (e.flor - v.flor) * ke;
     v.seco += (e.seco - v.seco) * ke;
     v.bruma += (e.bruma - v.bruma) * ke;
+    v.velo += (e.velo - v.velo) * ke;
 
     this._apply();
   }
