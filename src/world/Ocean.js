@@ -14,8 +14,25 @@ import { PALETTE, WORLD } from '../config.js';
 // subir, y cuanto más alta la cámara, más lejos se ve el canto del plano.
 const EXTENT = 4600;
 const SEGMENTS = 320;
-const BAKE_SIZE = 256;
-const BAKE_EXTENT = 560;
+/**
+ * Mapa de profundidad con el que el agua sabe dónde hay bajío.
+ *
+ * TIENE QUE CUBRIR TODA LA TIERRA QUE HAYA, y con margen para la falda
+ * submarina. No es un detalle de calidad: fuera de este cuadrado el shader
+ * fuerza `depth = 1`, y justo en el borde el `clamp` del muestreo estira el
+ * téxel de la orilla a lo largo de toda la arista. Con 560 —media extensión
+ * 280— la segunda isla, que llega a |z| 305 y cuya falda alcanza 376, salía
+ * cortada por el borde: el mar pintaba una cuña de espuma con dos aristas
+ * rectas donde tenía que haber agua profunda.
+ *
+ * 800 cubre ±400, o sea la baldosa del terreno (±350) y la falda del islote
+ * (376). Y el téxel se mantiene fino subiendo el tamaño: a 384 sale a 2,08 m,
+ * algo mejor que los 2,19 de antes. Estirar la extensión sin tocar la
+ * resolución habría emborronado la línea de costa de la isla grande, que es
+ * justo donde se nota.
+ */
+const BAKE_SIZE = 384;
+const BAKE_EXTENT = 800;
 
 const vertexShader = /* glsl */ `
   #include <common>
@@ -284,6 +301,15 @@ function bakeLandHeight(field) {
   }
   ctx.putImageData(image, 0, 0);
   const tex = new THREE.CanvasTexture(canvas);
+  // `flipY` A FALSE, y no es un detalle: `CanvasTexture` lo trae a true por
+  // defecto, así que la textura se sube dada la vuelta y el shader lee la cota
+  // del punto ESPEJADO en Z. Con una isla sola y más o menos centrada el fallo
+  // pasaba desapercibido —el espejo de la costa cae casi encima de la costa—,
+  // pero al meter una segunda isla en z=+227 apareció su anillo de bajío
+  // calcado en z=-227: una meseta de espuma y arena en mitad de cuarenta y
+  // seis metros de agua. Medido: donde el mapa dice profundidad 1,00 el shader
+  // leía 0,72, y donde dice 0,29 leía 0,90 — cruzados.
+  tex.flipY = false;
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.minFilter = THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;

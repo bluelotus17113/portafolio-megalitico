@@ -181,7 +181,52 @@ const datos = await page.evaluate(() => {
     };
   });
 
+  // ── ¿El mapa de profundidad del agua está donde dice? ──────────────
+  //
+  // `CanvasTexture` trae `flipY = true`, así que el mapa horneado se sube dado
+  // la vuelta y el shader lee la cota del punto ESPEJADO EN Z. Con una isla
+  // sola y centrada no se nota —el espejo de la costa cae casi encima de la
+  // costa—; con dos, la segunda dibuja su anillo de bajío en el lado contrario
+  // del mundo, en mitad de cuarenta y seis metros de agua.
+  //
+  // Se comprueba comparando lo que dice la textura con lo que dice el campo,
+  // en puntos ASIMÉTRICOS a propósito: sobre el eje o cerca del centro un
+  // espejo en Z da lo mismo y la prueba pasaría estando rota.
+  const oc = w.ocean.uniforms;
+  const lienzo = oc.uLand.value.image;
+  const ctx2d = lienzo.getContext('2d');
+  const NT = lienzo.width;
+  const EXT = oc.uBakeExtent.value;
+  const mapa = [];
+  for (const [px, pz] of [
+    [I.x, I.y],                       // el centro de la segunda isla
+    [I.x * 0.72, I.y * 0.72],         // el bajío de la calzada
+    [-I.x * 0.6, -I.y * 0.6],         // su espejo: aquí NO puede haber bajío
+    [c * (costa + 25), s * (costa + 25)],
+  ]) {
+    const uv = [px / EXT + 0.5, pz / EXT + 0.5];
+    if (uv.some((v) => v < 0 || v > 1)) { mapa.push({ fuera: true }); continue; }
+    // Se lee EL TÉXEL QUE LEE EL SHADER, no el que le tocaría al canvas.
+    // `flipY` solo afecta a la subida a la GPU: leyendo el canvas a pelo, esta
+    // comprobación pasaba con la textura del revés y no servía de nada.
+    const v = oc.uLand.value.flipY ? 1 - uv[1] : uv[1];
+    const d = ctx2d.getImageData(
+      Math.round(uv[0] * (NT - 1)),
+      Math.round(Math.max(0, Math.min(1, v)) * (NT - 1)),
+      1, 1
+    ).data;
+    mapa.push({
+      x: Math.round(px), z: Math.round(pz),
+      textura: +((d[0] / 255) * 300 - 150).toFixed(1),
+      campo: +f.baseHeight(px, pz).toFixed(1),
+      flipY: oc.uLand.value.flipY,
+    });
+  }
+
   return {
+    mapa,
+    bakeExtent: EXT,
+    bakeSize: NT,
     rumbo: +rumbo.toFixed(2),
     costa: +costa.toFixed(0),
     cruces,
@@ -236,6 +281,28 @@ comprobar(
   lejos.every((v) => Math.abs(v.sobra) < 0.5),
   'y se funde con el lecho de verdad: no hay pedestal',
   lejos.map((v) => `a ${v.r} radios sobra ${v.sobra} m`).join(', ')
+);
+
+// ── 1b. El mapa con el que el agua sabe dónde hay bajío ──────────────────
+console.log('\n── el agua sabe dónde está la tierra');
+comprobar(
+  datos.mapa.every((m) => !m.fuera),
+  'el mapa de profundidad cubre las dos islas',
+  `${datos.bakeSize}² téxeles sobre ${datos.bakeExtent} m (${(datos.bakeExtent / datos.bakeSize).toFixed(2)} m por téxel)`
+);
+const desvios = datos.mapa.filter((m) => !m.fuera).map((m) => Math.abs(m.textura - m.campo));
+comprobar(
+  datos.mapa.every((m) => m.fuera || m.flipY === false),
+  'la textura no va del revés (`flipY` apagado)',
+  `flipY = ${datos.mapa[0]?.flipY}`
+);
+comprobar(
+  desvios.every((d) => d < 6),
+  'y en puntos asimétricos dice lo mismo que el terreno: no está espejada',
+  datos.mapa
+    .filter((m) => !m.fuera)
+    .map((m) => `(${m.x},${m.z}) mapa ${m.textura} campo ${m.campo}`)
+    .join(' · ')
 );
 
 // ── 2. La calzada ────────────────────────────────────────────────────────
