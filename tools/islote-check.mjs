@@ -77,6 +77,8 @@ const datos = await page.evaluate(() => {
   const w = P.world;
   const f = w.field;
   const I = w.isloteCentro;
+  const R = w.isloteRadio;
+  const dCentro = Math.hypot(I.x, I.y);
   const rumbo = Math.atan2(I.y, I.x);
   const c = Math.cos(rumbo);
   const s = Math.sin(rumbo);
@@ -84,7 +86,11 @@ const datos = await page.evaluate(() => {
 
   // ── Perfil a lo largo del rumbo ────────────────────────────────────
   const perfil = [];
-  for (let d = 150; d <= 300; d += 0.5) perfil.push([d, f.height(c * d, s * d)]);
+  // El barrido llega hasta pasada la orilla LEJANA del islote. Con un tope
+  // fijo de 300 la prueba fallaba al ensanchar el islote, y no porque el
+  // mundo estuviera mal: es que el tercer cruce del nivel del mar se quedaba
+  // fuera del rango medido.
+  for (let d = 150; d <= dCentro + R * 1.6; d += 0.5) perfil.push([d, f.height(c * d, s * d)]);
   const cruces = [];
   for (let i = 1; i < perfil.length; i++) {
     if (Math.sign(perfil[i - 1][1]) !== Math.sign(perfil[i][1])) cruces.push(+perfil[i][0].toFixed(0));
@@ -98,10 +104,21 @@ const datos = await page.evaluate(() => {
   // devuelve antes de componer nada.
   const perp = rumbo + Math.PI / 2;
   const pedestal = [];
-  for (const r of [44, 60, 80]) {
+  // Las distancias van en RADIOS del islote, no en metros fijos: a 44 y 60 m
+  // de un islote de radio 78 se mide dentro del propio islote, y entonces la
+  // prueba acusa de pedestal a la peña misma.
+  //
+  // Y las dos de fuera van a 2,0 y 2,8 radios porque la falda submarina está
+  // DEFINIDA hasta 1,9 (ver `_islotes`): muestreando a 1,8 se mide la falda y
+  // se la llama pedestal.
+  for (const r of [R * 1.35, R * 2.0, R * 2.8]) {
     const x = I.x + Math.cos(perp) * r;
     const z = I.y + Math.sin(perp) * r;
-    pedestal.push(+(f.height(x, z) - f._promontorio(x, z)).toFixed(2));
+    pedestal.push({
+      r: +(r / R).toFixed(2),
+      cota: +f.height(x, z).toFixed(1),
+      sobra: +(f.height(x, z) - f._promontorio(x, z)).toFixed(1),
+    });
   }
 
   // ── La calzada ─────────────────────────────────────────────────────
@@ -203,10 +220,22 @@ comprobar(
   `${datos.aguaEntre} m entre las dos orillas`
 );
 comprobar(datos.cima > 15, 'el islote levanta lo suyo', `cima a ${datos.cima} m`);
+// Que el islote tenga falda submarina es CORRECTO: una isla se apoya en algo.
+// Lo que no puede haber es un escalón plano cerca de la superficie, que fue el
+// fallo de la primera versión —una meseta a -9 m en sesenta y cuatro metros a
+// la redonda—. Así que se piden dos cosas distintas: cerca, que la falda vaya
+// bien hundida; lejos, que se haya fundido ya con el lecho de verdad.
+const cerca = datos.pedestal[0];
+const lejos = datos.pedestal.slice(1);
 comprobar(
-  datos.pedestal.every((v) => Math.abs(v) < 0.5),
-  'y su falda no levanta el lecho a su alrededor: no hay pedestal',
-  `diferencia contra el fondo natural a 44, 60 y 80 m: ${datos.pedestal.join(', ')} m`
+  cerca.cota < -8,
+  'la falda del islote va bien hundida: no hay repisa a flor de agua',
+  `a 1,35 radios el fondo está a ${cerca.cota} m`
+);
+comprobar(
+  lejos.every((v) => Math.abs(v.sobra) < 0.5),
+  'y se funde con el lecho de verdad: no hay pedestal',
+  lejos.map((v) => `a ${v.r} radios sobra ${v.sobra} m`).join(', ')
 );
 
 // ── 2. La calzada ────────────────────────────────────────────────────────

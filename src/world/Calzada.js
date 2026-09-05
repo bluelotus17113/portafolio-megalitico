@@ -20,9 +20,62 @@
  */
 
 import * as THREE from 'three';
-import { createSlab, createStone, stoneMesh } from '../models/StoneFactory.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createSlab, createStone, rockMaterial } from '../models/StoneFactory.js';
 import { makeRandom } from '../utils/noise.js';
 import { WORLD } from '../config.js';
+
+/**
+ * Junta un montón de piedras sueltas en una sola malla por material.
+ *
+ * La calzada y la escalinata son ciento y pico bloques que no se mueven nunca,
+ * y una malla por bloque es una llamada de dibujado por bloque. Medido al
+ * alargar la calzada a dieciséis vanos y meter cuarenta y ocho peldaños: la
+ * escena pasó de 803 mallas a 861 y los fotogramas de 59,8 a 57,6 de media,
+ * con los vértices prácticamente iguales —3.776k contra 3.793k—. No era
+ * geometría: eran llamadas.
+ *
+ * Fundidas quedan dos mallas, una por variante de granito. Se pierde poder
+ * mover una losa por su cuenta, que aquí no hace falta: esto se construye una
+ * vez y se queda quieto cinco mil años.
+ */
+function fundir(piezas, nombre) {
+  const salida = [];
+  for (const oscura of [false, true]) {
+    const lote = piezas.filter((p) => p.oscura === oscura);
+    if (lote.length === 0) continue;
+    const geos = lote.map(({ geo, m }) => geo.clone().applyMatrix4(m));
+    const junta = mergeGeometries(geos, false);
+    for (const g of geos) g.dispose();
+    for (const { geo } of lote) geo.dispose();
+    if (!junta) continue;
+    junta.computeBoundingSphere();
+    const malla = new THREE.Mesh(junta, rockMaterial({ dark: oscura }));
+    malla.name = `${nombre}-${oscura ? 'oscuro' : 'claro'}`;
+    malla.castShadow = true;
+    malla.receiveShadow = true;
+    salida.push(malla);
+  }
+  return salida;
+}
+
+/**
+ * Apunta una pieza con su matriz de colocación.
+ *
+ * El orden de giros es `YZX`: primero en planta y luego se tumba. Al revés, la
+ * pendiente del tablero se aplica sobre el eje equivocado y las losas salen
+ * peraltadas en vez de en cuesta.
+ */
+const _m = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler(0, 0, 0, 'YZX');
+const _p = new THREE.Vector3();
+const _u = new THREE.Vector3(1, 1, 1);
+function colocar(piezas, geo, x, y, z, rotY, rotZ = 0, oscura = false) {
+  _e.set(0, rotY, rotZ);
+  _q.setFromEuler(_e);
+  piezas.push({ geo, oscura, m: _m.compose(_p.set(x, y, z), _q, _u).clone() });
+}
 
 /**
  * Busca sobre el rumbo el punto donde el terreno cruza una cota.
@@ -68,6 +121,12 @@ export function createCalzada(field, { rumbo, distancia, ancho = 4.6, tramo = 5.
   // que subían media altura de más. Las dieciocho pilas asomaban por encima
   // del tablero y el puente se leía como un esqueleto de pez. Aquí, `position.y`
   // es SIEMPRE la cota de la base.
+  //
+  /** Piezas sueltas que al final se funden en dos mallas. Ver `fundir`. */
+  const piezas = [];
+  const poner = (geo, x, y, z, rotY, rotZ, oscura) =>
+    colocar(piezas, geo, x, y, z, rotY, rotZ, oscura);
+
   const dir = new THREE.Vector2(Math.cos(rumbo), Math.sin(rumbo));
   const lado = new THREE.Vector2(-dir.y, dir.x);
   const punto = (d, off = 0) =>
@@ -124,15 +183,12 @@ export function createCalzada(field, { rumbo, distancia, ancho = 4.6, tramo = 5.
       erosion: 0.09,
       detail: 3,
     });
-    const malla = stoneMesh(losa, { name: `calzada-losa-${i}` });
-    malla.position.set(p.x, cotaEn((i + 0.5) / vanos) - grosor, p.y);
-    // El orden importa: primero se gira en planta y luego se tumba, si no la
-    // pendiente se aplica sobre el eje equivocado y las losas salen peraltadas
-    // en vez de en cuesta.
-    malla.rotation.order = 'YZX';
-    malla.rotation.y = -rumbo + (random() - 0.5) * 0.035;
-    malla.rotation.z = -pendiente + (random() - 0.5) * 0.012;
-    group.add(malla);
+    poner(
+      losa, p.x, cotaEn((i + 0.5) / vanos) - grosor, p.y,
+      -rumbo + (random() - 0.5) * 0.035,
+      -pendiente + (random() - 0.5) * 0.012,
+      false
+    );
   }
 
   // ── Pilas ───────────────────────────────────────────────────────────
@@ -170,10 +226,7 @@ export function createCalzada(field, { rumbo, distancia, ancho = 4.6, tramo = 5.
         erosion: 0.16,
         flatBase: true,
       });
-      const malla = stoneMesh(pila, { dark: true, name: `calzada-pila-${i}` });
-      malla.position.set(p.x, lecho - enterrado, p.y);
-      malla.rotation.y = -rumbo + (random() - 0.5) * 0.16;
-      group.add(malla);
+      poner(pila, p.x, lecho - enterrado, p.y, -rumbo + (random() - 0.5) * 0.16, 0, true);
     }
   }
 
@@ -198,10 +251,7 @@ export function createCalzada(field, { rumbo, distancia, ancho = 4.6, tramo = 5.
         lean: (random() - 0.5) * 0.10,
         flatBase: true,
       });
-      const malla = stoneMesh(menhir, { name: `calzada-menhir-${i}` });
-      malla.position.set(p.x, cotaEn(i / vanos) - 0.16, p.y);
-      malla.rotation.y = -rumbo + (random() - 0.5) * 0.3;
-      group.add(malla);
+      poner(menhir, p.x, cotaEn(i / vanos) - 0.16, p.y, -rumbo + (random() - 0.5) * 0.3, 0, false);
     }
   }
 
@@ -224,6 +274,8 @@ export function createCalzada(field, { rumbo, distancia, ancho = 4.6, tramo = 5.
       floorB: cotaEn((i + 1) / vanos),
     });
   }
+
+  for (const m of fundir(piezas, 'calzada')) group.add(m);
 
   group.userData.cota = cotaA;
   group.userData.cotaB = cotaB;
@@ -253,6 +305,10 @@ export function createEscalinata(field, { rumbo, desdeD, hastaD, cotaSalida, cot
   const random = makeRandom(seed);
   const group = new THREE.Group();
   group.name = 'escalinata-islote';
+
+  const piezas = [];
+  const poner = (geo, x, y, z, rotY, oscura) =>
+    colocar(piezas, geo, x, y, z, rotY, 0, oscura);
 
   const dir = new THREE.Vector2(Math.cos(rumbo), Math.sin(rumbo));
   const lado = new THREE.Vector2(-dir.y, dir.x);
@@ -286,11 +342,8 @@ export function createEscalinata(field, { rumbo, desdeD, hastaD, cotaSalida, cot
       erosion: 0.12,
       detail: 3,
     });
-    const malla = stoneMesh(losa, { dark: i % 3 === 0, name: `escalon-${i}` });
     // Por la base, como toda la fábrica de piedra de este proyecto.
-    malla.position.set(p.x, techo - grosor, p.y);
-    malla.rotation.y = -rumbo + (random() - 0.5) * 0.05;
-    group.add(malla);
+    poner(losa, p.x, techo - grosor, p.y, -rumbo + (random() - 0.5) * 0.05, i % 3 === 0);
 
     const a = punto(desdeD + huella * i);
     const b = punto(desdeD + huella * (i + 1));
@@ -312,11 +365,10 @@ export function createEscalinata(field, { rumbo, desdeD, hastaD, cotaSalida, cot
       detail: 3, roundness: 0.3, taper: 0.18, erosion: 0.14,
       lean: (random() - 0.5) * 0.12, flatBase: true,
     });
-    const malla = stoneMesh(jalon, { name: 'escalinata-jalon' });
-    malla.position.set(p.x, field.height(p.x, p.y) - 0.25, p.y);
-    malla.rotation.y = -rumbo + (random() - 0.5) * 0.3;
-    group.add(malla);
+    poner(jalon, p.x, field.height(p.x, p.y) - 0.25, p.y, -rumbo + (random() - 0.5) * 0.3, false);
   }
+
+  for (const m of fundir(piezas, 'escalinata')) group.add(m);
 
   group.userData.peldanos = peldanos;
   group.userData.contra = contra;

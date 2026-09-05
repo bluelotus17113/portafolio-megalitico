@@ -12,8 +12,28 @@ import { turf, granite } from '../utils/textures.js';
 import { applyToonShading, TOON_PRESETS } from '../vfx/toon.js';
 import { PALETTE, SEED, WORLD } from '../config.js';
 
-const TILE = 520;
-const SEGMENTS = 384;
+/**
+ * La baldosa del terreno y su teselado.
+ *
+ * Subidos de 520/384 para que quepa mar adentro una segunda tierra a la que
+ * SE LA VEA desde el mirador. Con 520 el borde caía en ±260 y eso topaba las
+ * tres cosas a la vez: cuánto se puede alejar el islote, cuánto puede medir y
+ * por tanto qué silueta admite. Se probaron veintisiete rumbos y tres alturas
+ * dentro de ese límite y ninguno asomaba por encima del cinturón de árboles
+ * del borde de la isla grande — la única forma de conseguirlo era un farallón
+ * de cuarenta metros con radio treinta, que sale como una pantalla de lámpara.
+ *
+ * El paso se mantiene en 1,354 m por cuadro (700/517), y no por comodidad: la
+ * rasa mareal de `_rasa` existe justamente porque a ese paso la pared del
+ * acantilado se dibujaba como una escalera de peldaños de seis metros. Bajar
+ * la resolución para ahorrar vértices reabriría ese problema.
+ *
+ * Y sale barato: el terreno pasa de 148k vértices a 268k, pero la escena
+ * entera tiene 3.656k —la manda la hierba, con 110.000 briznas— así que son
+ * tres puntos porcentuales sobre el total. Medido: 59,8 fps antes y después.
+ */
+const TILE = 700;
+const SEGMENTS = 517;
 
 export class TerrainField {
   constructor(seed = SEED) {

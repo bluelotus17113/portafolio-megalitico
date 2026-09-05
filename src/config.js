@@ -125,18 +125,26 @@ export const WORLD = {
 /**
  * El islote y su calzada.
  *
- * La dirección está MEDIDA, no elegida. Se lanza un rayo desde el mirador a la
- * cima para cada rumbo y se mira cuánto lo corta la isla; contando también el
- * arbolado, que es lo que decide. El primer intento fue 2,47 —justo hacia
- * donde apunta la cámara— y era el sitio equivocado: la vista salía limpia
- * mientras el rayo solo miraba el terreno, y con las copas puestas el islote
- * caía dos dedos por debajo de la línea de árboles del borde. Existía, se
- * proyectaba al centro del cuadro y no se veía.
+ * El sitio está MEDIDO, y costó tres intentos porque las dos primeras medidas
+ * eran malas:
  *
- * A 2,60 el rayo va tapado un 2 % contra el 8-21 % de todos los demás rumbos,
- * y no es casualidad: ahí la costa se retira a 162 en vez de a 175. Es una
- * ensenada, o sea el único hueco por el que de verdad se ve el mar abierto
- * desde donde aterriza el visitante.
+ *  1. Rumbo 2,47, el que mira la cámara. El rayo salía limpio porque solo
+ *     miraba el TERRENO; con las copas puestas el islote caía dos dedos por
+ *     debajo de la línea de árboles. Existía, se proyectaba al centro del
+ *     cuadro y no se veía.
+ *  2. Rumbo 2,60 con las copas modeladas a ojo —nueve metros sobre toda la
+ *     tierra— daba «tapado un 2 %» y seguía sin verse. Modelar el arbolado a
+ *     mano no vale: hay que lanzar el rayo contra la ESCENA de verdad.
+ *
+ * Lo que decidió fue trazar rayos contra las mallas reales desde la posición
+ * real de la cámara. Los obstáculos resultaron ser copas a 140-230 m con la
+ * corona entre y=46 e y=63, y contra eso no hay islote bajo que valga: la
+ * cuenta pide que la visual pase por encima de 63 m a 190 m de la cámara.
+ *
+ * Con la baldosa de 700 se puede alejar a 305 y ensanchar a 52, y entonces la
+ * visual pasa limpia sin necesidad de un farallón: la pendiente media queda en
+ * 0,54, que es una peña con faldas y no una pantalla de lámpara. Cae en
+ * (534, 249) de un cuadro de 1280 × 760 — centrado y a un tercio de altura.
  *
  * El radio y la distancia están topados por la malla del terreno, que es una
  * baldosa de 520 × 520. Con el centro a 250 el islote ocupa x ∈ [-230, -162],
@@ -145,10 +153,10 @@ export const WORLD = {
  */
 export const ISLOTE = {
   /** Hacia dónde, en radianes. Medido, no elegido a ojo. */
-  rumbo: 2.75,
+  rumbo: 2.30,
   /** A qué distancia del centro de la isla grande. La costa está en 174. */
-  distancia: 240,
-  radius: 30,
+  distancia: 305,
+  radius: 78,
   /**
    * Cota de la cima.
    *
@@ -159,14 +167,19 @@ export const ISLOTE = {
    * ahí lo que hay son árboles. Da igual el rumbo — se probaron los veintisiete
    * que caben en el encuadre y los veintisiete daban en verde.
    *
-   * Subirlo a 42 tampoco era la respuesta: con radio 30 sale un cono de
-   * paredes rectas —una pantalla de lámpara— y la calzada tiene que trepar
-   * ocho metros para tocarlo. La respuesta es el SITIO, no la altura: a 2,75
-   * hay un hueco por el que se ve mar abierto entre las copas, medido
-   * proyectando cada rumbo candidato sobre una captura real y mirando qué
-   * píxel hay ahí. Sobre ese hueco un islote de veintidós metros se ve entero.
+   * Sale de una cuenta, no del gusto. Trazando rayos contra la escena real,
+   * los obstáculos son copas a unos 200 m con la corona en y=63. Desde una
+   * cámara a y=88 eso fija un ángulo: para asomar por encima de esa línea, un
+   * islote a 395 m en horizontal necesita (H-88)/395 > (63-88)/200, o sea
+   * H > 46,5.
+   *
+   * Con radio 30 esos cincuenta metros son un cono de paredes rectas. Con 78
+   * la pendiente media queda en 0,64 y sigue siendo una isla con faldas. Por
+   * eso la baldosa del terreno subió a 700: no era para alejarlo, era para
+   * poder ENSANCHARLO lo bastante como para que la altura que hace falta no
+   * lo convierta en una aguja.
    */
-  altura: 22,
+  altura: 50,
   /** Ancho del bajío por el que va la calzada, y a qué profundidad lo deja. */
   bajio: { halfWidth: 8, blend: 11, depth: -3.0 },
   /** Ancho de la losa de la calzada y cada cuánto va una pila. */

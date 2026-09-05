@@ -178,6 +178,7 @@ export class World {
     const c = Math.cos(ISLOTE.rumbo);
     const s = Math.sin(ISLOTE.rumbo);
     this.isloteCentro = new THREE.Vector2(c * ISLOTE.distancia, s * ISLOTE.distancia);
+    this.isloteRadio = ISLOTE.radius;
     this.field.addIsla(
       this.isloteCentro.x,
       this.isloteCentro.y,
@@ -214,7 +215,7 @@ export class World {
       }
       return ISLOTE.distancia - ISLOTE.radius;
     })();
-    const cimaD = ISLOTE.distancia - 7;
+    const cimaD = ISLOTE.distancia - 5;
     const cimaY = this.field.baseHeight(c * cimaD, s * cimaD);
     this.escalinataPlan = { pieD, cimaD, pieY: 4.4, cimaY };
     this.field.addCut(c * pieD, s * pieD, c * cimaD, s * cimaD, {
@@ -224,12 +225,18 @@ export class World {
       floorB: cimaY,
     });
 
-    // Explanada bajo el dolmen. Lo mismo que llevan los cinco santuarios, y
+    // Explanada bajo el dolmen, a la MISMA cota a la que llega la escalinata.
+    //
+    // Con la explanada resuelta por su cuenta —`addPad` sin cota— quedaba un
+    // palmo de terreno natural entre el último peldaño y la plataforma, y ahí
+    // la tangente salía a 0,63 contra el 0,62 que admite el modo a pie: el
+    // último metro antes del dolmen era infranqueable. Dándole a la explanada
+    // la cota de llegada de la escalera, las dos casan y no hay costura. Lo mismo que llevan los cinco santuarios, y
     // por lo mismo: medido, el terreno del islote sube dos metros en los cinco
     // de huella del dolmen, así que la jamba de atrás quedaba enterrada 1,79 de
     // sus 1,94 y del monumento solo asomaba la cubierta tirada en la hierba.
     // Un megalito se planta a nivel — es lo primero que hace quien lo levanta.
-    this.field.addPad(this.isloteCentro.x, this.isloteCentro.y, 6.5, 11);
+    this.field.addPad(this.isloteCentro.x, this.isloteCentro.y, 9, 13, cimaY);
 
     this._traceRoutes();
   }
