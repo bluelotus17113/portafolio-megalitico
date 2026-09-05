@@ -96,6 +96,38 @@ export class CameraRig {
        * bajo los pies y se pone a cero al tocarlo.
        */
       caida: 0,
+      /**
+       * Impulso vertical del salto, m/s.
+       *
+       * Con la gravedad a 22, `v²/2g` da 1,31 m de altura y algo menos de
+       * setecientos milisegundos en el aire. Está elegido contra la isla, no a
+       * ojo: sube de sobra los peldaños de 0,42 de la escalinata del islote y
+       * los 0,55 de la cantería, y se queda muy por debajo de los tres metros
+       * de un ortostato — no se puede uno subir a los monumentos.
+       */
+      saltoImpulso: 7.6,
+      /** Gravedad, m/s². Más viva que la real; ver la caída más abajo. */
+      gravedad: 22,
+      /**
+       * Margen para saltar después de haber dejado el suelo, en segundos.
+       *
+       * El «tiempo del coyote» de toda la vida. Sin él, saltar justo en el
+       * borde de un peldaño no sale y se siente como que el juego no escucha:
+       * entre que se ve el borde y se pulsa han pasado dos o tres fotogramas
+       * en los que ya se estaba cayendo.
+       */
+      coyoteMax: 0.12,
+      /** Cuánto hace que se dejó el suelo. */
+      coyote: 0,
+      /**
+       * Salto pedido que aún no se ha podido servir, en segundos.
+       *
+       * La otra mitad del apaño: pulsar un pelín ANTES de aterrizar también
+       * vale. Sin esto, encadenar saltos exige un temple de milisegundos.
+       */
+      pedido: 0,
+      /** Si los pies tocan algo ahora mismo. */
+      enSuelo: true,
       /** Radio del cuerpo para chocar con la piedra. */
       radio: 0.45,
       /**
@@ -252,6 +284,9 @@ export class CameraRig {
     this._onContextMenu = (e) => e.preventDefault();
 
     this._onKeyDown = (e) => {
+      // La barra espaciadora hace scroll en la página por defecto, y aquí
+      // salta. Solo se le quita el efecto cuando de verdad manda el rig.
+      if (e.code === 'Space' && (this.mode === 'walk' || this.mode === 'free')) e.preventDefault();
       this.free.keys.add(e.code);
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.free.keys.add('Shift');
     };
@@ -618,7 +653,13 @@ export class CameraRig {
     forward.y = 0;
     if (forward.lengthSq() < 1e-6) forward.set(-Math.sin(f.yaw), 0, -Math.cos(f.yaw));
     forward.normalize();
-    const right = new THREE.Vector3(forward.z, 0, -forward.x);
+    // `forward × arriba`, que para Y-up es (-z, 0, x).
+    //
+    // Estaba escrito (z, 0, -x), o sea exactamente el negado: era el vector
+    // IZQUIERDA. Con eso, A y D iban cambiadas al andar —y también el eje
+    // lateral de la palanca táctil, que usa este mismo vector—. El vuelo libre
+    // no lo sufría porque saca su lateral del cuaternión de la cámara.
+    const right = new THREE.Vector3(-forward.z, 0, forward.x);
 
     const wish = new THREE.Vector3();
     if (f.keys.has('KeyW') || f.keys.has('ArrowUp')) wish.add(forward);
@@ -646,6 +687,21 @@ export class CameraRig {
     const velocidad = w.paso * (f.keys.has('Shift') || palanca > 0.96 ? w.carrera : 1);
     if (andando) wish.normalize().multiplyScalar(velocidad * empuje);
 
+    // ── Salto ───────────────────────────────────────────────────────────
+    //
+    // Va montado sobre la gravedad que ya había: `w.caida` es la velocidad
+    // vertical hacia ABAJO, así que un impulso negativo es, literalmente, un
+    // tiro parabólico. No hace falta un integrador aparte.
+    if (f.keys.has('Space')) w.pedido = 0.15;
+    else w.pedido = Math.max(0, w.pedido - dt);
+
+    if (w.pedido > 0 && w.coyote <= w.coyoteMax) {
+      w.caida = -w.saltoImpulso;
+      w.pedido = 0;
+      w.coyote = 999;   // ya no se está en el suelo: nada de saltos dobles
+      w.enSuelo = false;
+    }
+
     // Arranque y frenada con algo de peso, pero mucho más secos que en vuelo:
     // un cuerpo no derrapa.
     w.velocity.x = damp(w.velocity.x, wish.x, 11, dt);
@@ -661,7 +717,18 @@ export class CameraRig {
     const intentar = (dx, dz) => {
       const nx = pos.x + dx;
       const nz = pos.z + dz;
-      const destino = this._sePuedePisar(nx, nz, suelo, pos.y);
+      // En el aire NO manda la regla de pisada.
+      //
+      // Si mandara, el salto no serviría para nada: `_sePuedePisar` prohíbe
+      // subir a lo que esté por encima del escalón, así que saltar sobre un
+      // bolo te dejaba flotando contra su costado. Volando se pasa por encima
+      // de lo que quede bajo los pies, y lo que quede por encima sigue siendo
+      // pared — si no, se atravesaría el acantilado de un brinco.
+      const destino = w.enSuelo
+        ? this._sePuedePisar(nx, nz, suelo, pos.y)
+        : this._suelo(nx, nz, pos.y) > pos.y - w.ojos + 0.05
+          ? null
+          : this._suelo(nx, nz, pos.y);
       if (destino === null) return false;
       pos.x = nx;
       pos.z = nz;
@@ -704,22 +771,35 @@ export class CameraRig {
     // Nadie ha bajado nunca un escalón así.
     const objetivo = suelo + w.ojos;
 
-    if (objetivo >= pos.y) {
-      // Subiendo. Se suaviza deprisa —un peldaño tiene que leerse como un
-      // peldaño, no como una rampa— y con un tope al retraso: si el suelo da
-      // un salto grande, la cámara lo sigue en vez de quedarse enterrada.
+    // Se está EN EL AIRE si se sube por un impulso —`caida` negativa— o si los
+    // ojos van por encima de donde tocaría. Antes la condición era solo la
+    // segunda, y con ella el primer fotograma de un salto caía en la rama de
+    // «subiendo», que pone `caida` a cero: el impulso se borraba antes de
+    // llegar a aplicarse y no se despegaba del suelo.
+    if (w.caida < 0 || pos.y > objetivo + 1e-4) {
+      // Balística. Gravedad de videojuego, más viva que la real: con 9,8 m/s²
+      // los saltitos de veinte centímetros de la cantería se sienten lunares.
+      w.caida = Math.min(w.caida + w.gravedad * dt, 26);
+      pos.y -= w.caida * dt;
+      if (pos.y <= objetivo) {
+        pos.y = objetivo;
+        w.caida = 0;
+        w.enSuelo = true;
+        w.coyote = 0;
+      } else {
+        w.enSuelo = false;
+        w.coyote += dt;
+      }
+    } else {
+      // Con los pies en el suelo. Se suaviza deprisa —un peldaño tiene que
+      // leerse como un peldaño, no como una rampa— y con un tope al retraso:
+      // si el suelo da un salto grande, la cámara lo sigue en vez de quedarse
+      // enterrada.
       pos.y = damp(pos.y, objetivo, 30, dt);
       if (objetivo - pos.y > 0.45) pos.y = objetivo - 0.45;
       w.caida = 0;
-    } else {
-      // Cayendo. Gravedad de videojuego, más viva que la real: con 9,8 m/s²
-      // los saltitos de veinte centímetros de la cantería se sienten lunares.
-      w.caida = Math.min(w.caida + 22 * dt, 26);
-      pos.y = Math.max(objetivo, pos.y - w.caida * dt);
-      if (pos.y - objetivo < 1e-4) {
-        pos.y = objetivo;
-        w.caida = 0;
-      }
+      w.enSuelo = true;
+      w.coyote = 0;
     }
 
     // ── Vaivén de la cabeza ─────────────────────────────────────────────────
@@ -728,7 +808,9 @@ export class CameraRig {
     // —velocidad relativa— por una constante, y a 5,18 m/s daba 1,51 Hz: una
     // zancada de tres metros y medio, de gigante. Contando por distancia, un
     // ciclo cada 1,1 m es un paso de persona vaya uno rápido o despacio.
-    const rapidez = Math.hypot(w.velocity.x, w.velocity.z);
+    // Y solo con los pies en el suelo: en el aire no hay zancada que contar, y
+    // una cabeza que sigue botando a media parábola delata el truco.
+    const rapidez = w.enSuelo ? Math.hypot(w.velocity.x, w.velocity.z) : 0;
     w.vaiven += (rapidez * dt * Math.PI * 2) / 1.1;
     const fuerza = Math.min(1, rapidez / w.paso);
     w.bamboleo = Math.sin(w.vaiven) * 0.045 * fuerza;
