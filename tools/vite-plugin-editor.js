@@ -17,7 +17,7 @@
  * Aquí el guardado cae exactamente donde tiene que caer, versionado con el resto.
  */
 
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 
 /** Extensiones de imagen admitidas, y su cabecera de data URL. */
@@ -78,12 +78,38 @@ function responder(res, codigo, cuerpo) {
 }
 
 /**
+ * ¿Esto que llega por HTTP es un contenido de portafolio?
+ *
+ * No es paranoia de seguridad —esto sólo corre en el servidor de desarrollo de
+ * quien edita— sino de integridad: `contenido.json` es el ÚNICO sitio donde
+ * viven los textos del portafolio, y una petición a medias lo dejaría sin
+ * proyectos sin que nadie se enterase hasta abrir la web. Se comprueba la
+ * forma, no los valores: que falte un `summary` es cosa del que escribe, pero
+ * que `proyectos` no sea una lista es un fichero roto.
+ */
+function revisarContenido(datos) {
+  if (!datos || typeof datos !== 'object') return 'se esperaba un objeto';
+  for (const clave of ['identidad', 'perfil', 'contacto']) {
+    if (!datos[clave] || typeof datos[clave] !== 'object' || Array.isArray(datos[clave])) {
+      return `falta el bloque «${clave}»`;
+    }
+  }
+  for (const clave of ['proyectos', 'habilidades', 'trayectoria']) {
+    if (!Array.isArray(datos[clave])) return `«${clave}» tiene que ser una lista`;
+  }
+  if (!Array.isArray(datos.perfil.body)) return '«perfil.body» tiene que ser una lista de párrafos';
+  if (typeof datos.identidad.name !== 'string') return '«identidad.name» tiene que ser texto';
+  return null;
+}
+
+/**
  * @param {object} opciones
  * @param {string} opciones.escena     Ruta del JSON de anulaciones, desde la raíz.
  * @param {string} opciones.texturas   Carpeta donde caen las imágenes subidas.
  */
 export function editorPlugin({
   escena = 'src/editor/escena.json',
+  contenido = 'src/contenido.json',
   texturas = 'public/texturas',
 } = {}) {
   let raiz = process.cwd();
@@ -113,8 +139,33 @@ export function editorPlugin({
       raiz = config.root;
     },
 
+    /**
+     * El contenido se vigila, pero su cambio NO recarga la página.
+     *
+     * Las dos mitades hacen falta y por motivos distintos. Vigilarlo es lo que
+     * hace que una edición a mano del JSON —o un `git checkout`, o cambiar de
+     * rama— llegue al navegador: Vite invalida el módulo antes de llamar aquí,
+     * así que la siguiente carga lo lee del disco. Ignorarlo del todo, que era
+     * la primera versión, dejaba al servidor sirviendo para siempre la copia
+     * que tenía cacheada, y eso no falla: enseña contenido viejo en silencio.
+     *
+     * Y devolver una lista vacía es lo que evita la recarga. Sin ella, cada
+     * guardado del panel recarga el propio panel —se pierde la sección y el
+     * sitio del formulario— y además compite con la respuesta del guardado:
+     * si la recarga gana, salta el aviso de «tienes cambios sin guardar»
+     * justo después de haber guardado.
+     */
+    handleHotUpdate({ file }) {
+      if (file !== resolve(raiz, contenido)) return;
+      // No hay que invalidar nada a mano: Vite ya lo ha hecho al ver el cambio
+      // del fichero, antes de llamar a este gancho. Lo único que aporta esto
+      // es la lista vacía, o sea «no hay nada que actualizar en caliente».
+      return [];
+    },
+
     configureServer(server) {
       const rutaEscena = resolve(raiz, escena);
+      const rutaContenido = resolve(raiz, contenido);
       const rutaTexturas = resolve(raiz, texturas);
 
       server.middlewares.use('/__editor/escena', async (req, res, next) => {
@@ -138,6 +189,45 @@ export function editorPlugin({
           const piezas = Object.keys(datos?.objetos ?? {}).length;
           server.config.logger.info(`[editor] escena guardada · ${piezas} piezas`);
           return responder(res, 200, { ok: true, piezas });
+        } catch (e) {
+          return responder(res, 400, { ok: false, error: String(e.message ?? e) });
+        }
+      });
+
+      server.middlewares.use('/__editor/contenido', async (req, res, next) => {
+        if (req.method === 'GET') {
+          try {
+            const { readFileSync } = await import('node:fs');
+            return responder(res, 200, JSON.parse(readFileSync(rutaContenido, 'utf8')));
+          } catch (e) {
+            return responder(res, 500, { ok: false, error: String(e.message ?? e) });
+          }
+        }
+        if (req.method !== 'POST') return next();
+        try {
+          const datos = await leerJson(req);
+          const problema = revisarContenido(datos);
+          if (problema) throw new Error(problema);
+
+          // Escritura atómica: primero a un fichero al lado y luego un
+          // renombrado, que en el mismo sistema de ficheros es una operación
+          // indivisible. Escribiendo encima directamente, un fallo a media
+          // escritura deja el contenido del portafolio truncado — y es el
+          // único sitio donde vive, así que no hay de dónde recuperarlo salvo
+          // del último commit.
+          const temporal = `${rutaContenido}.tmp`;
+          writeFileSync(temporal, `${JSON.stringify(datos, null, 2)}\n`, 'utf8');
+          renameSync(temporal, rutaContenido);
+
+          // El vigilante lo ignora, así que sin invalidar el módulo Vite
+          // seguiría sirviendo la copia anterior a quien recargue.
+          const modulo = server.moduleGraph.getModuleById(rutaContenido);
+          if (modulo) server.moduleGraph.invalidateModule(modulo);
+          server.config.logger.info(
+            `[panel] contenido guardado · ${datos.proyectos.length} proyectos, ` +
+              `${datos.habilidades.length} habilidades, ${datos.trayectoria.length} etapas`
+          );
+          return responder(res, 200, { ok: true });
         } catch (e) {
           return responder(res, 400, { ok: false, error: String(e.message ?? e) });
         }

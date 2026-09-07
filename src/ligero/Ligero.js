@@ -85,6 +85,26 @@ export class Ligero {
     this._laminas();
     this._seguirSeccion();
     this._revelar();
+    this._imprimirSiLoPiden();
+  }
+
+  /**
+   * `?imprimir` abre el diálogo de impresión al cargar.
+   *
+   * Lo usa el panel para previsualizar la hoja de vida de un golpe, pero no es
+   * una puerta de servicio: vale como enlace público, y es la dirección que hay
+   * que dar cuando alguien pide «mándame tu CV en PDF».
+   *
+   * Se espera a `document.fonts.ready` porque la hoja de vida usa Cinzel para
+   * el nombre: imprimiendo antes de que carguen, el navegador pagina con la
+   * tipografía de reserva y el corte de página cae en otro sitio que el que se
+   * ve en pantalla.
+   */
+  _imprimirSiLoPiden() {
+    if (!new URLSearchParams(location.search).has('imprimir')) return;
+    const lanzar = () => requestAnimationFrame(() => window.print());
+    if (document.fonts?.ready) document.fonts.ready.then(lanzar);
+    else lanzar();
   }
 
   // ------------------------------------------------------------------ marcado

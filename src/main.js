@@ -87,7 +87,35 @@ function entrar(modo) {
   return mostrarEscena();
 }
 
+/**
+ * El panel de contenido, con `?admin`.
+ *
+ * `import.meta.env.DEV` no es una comodidad: es la puerta. En la build vale
+ * `false`, la rama entera se cae al minimizar y el `import()` dinámico deja de
+ * existir, así que el panel NO viaja a `dist/`. Y aunque viajara no serviría de
+ * nada — quien guarda es una ruta del servidor de desarrollo, que la web
+ * publicada no tiene. Las dos mitades son de desarrollo, no una sola.
+ */
+async function mostrarAdmin() {
+  // Fuera el portafolio entero: el panel ocupa la página. El lienzo sobre todo,
+  // que es `position: fixed` a pantalla completa y transparente — dejarlo puesto
+  // se come los clics de los formularios sin ninguna señal.
+  for (const id of ['portada', 'loader', 'ui', 'scene', 'ligero']) {
+    document.getElementById(id)?.remove();
+  }
+  const { Admin } = await import('./admin/Admin.js');
+  const panel = new Admin(document.body);
+  // Expuesto igual que la escena: es por donde mira `tools/admin-check.mjs`
+  // para comprobar qué hay en el estado sin adivinarlo desde el formulario.
+  window.__admin = panel;
+  panel.montar();
+}
+
 function arrancar() {
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('admin')) {
+    return mostrarAdmin();
+  }
+
   const pedido = modoPedido();
 
   if (pedido === LIGERO) return mostrarLigero(haySoporteWebGL() ? undefined : avisoSinWebGL());

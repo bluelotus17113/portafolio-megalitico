@@ -166,13 +166,14 @@ console.log('\nVersión ligera (?modo=ligero)');
   // corriendo contra el servidor de desarrollo. En `dist/` no está, y pedirla
   // no da un 404 sino el `index.html` de recambio: hay que mirar el tipo de
   // contenido, porque el texto llega igual y el recuento saldría cero.
+  // Se pregunta por la ruta del panel, que lee `contenido.json` del disco y lo
+  // devuelve tal cual. Antes se contaban con una expresión regular sobre el
+  // código de `content.js`, y el día que los datos se mudaron al JSON el
+  // recuento pasó a cero sin que la página tuviera nada mal. Esa ruta sólo
+  // existe en desarrollo, que es justo lo que quiere decir el −1 de abajo.
   const esperados = await page.evaluate(() =>
-    fetch('/src/content.js')
-      .then((r) =>
-        r.ok && /javascript/.test(r.headers.get('content-type') ?? '')
-          ? r.text().then((t) => (t.match(/^\s{4}id: '\w+',$/gm) ?? []).length)
-          : -1
-      )
+    fetch('/__editor/contenido')
+      .then((r) => (r.ok ? r.json().then((d) => d.proyectos?.length ?? -1) : -1))
       .catch(() => -1)
   );
   comprobar(

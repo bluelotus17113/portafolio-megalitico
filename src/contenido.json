@@ -1,0 +1,316 @@
+{
+  "identidad": {
+    "name": "TU NOMBRE",
+    "role": "Perfil profesional",
+    "oghamMotto": "ainm"
+  },
+  "perfil": {
+    "title": "Sobre mí",
+    "subtitle": "La Estela de Inscripciones",
+    "body": [
+      "Marcador de posición. Aquí va el texto de presentación: quién eres, a qué te dedicas y qué tipo de trabajo buscas. Dos o tres párrafos cortos funcionan mejor que uno largo.",
+      "Segundo párrafo de ejemplo. Sirve para el enfoque, la forma de trabajar o aquello que te distingue. Sustituye este texto por el tuyo."
+    ],
+    "facts": [
+      {
+        "label": "Ubicación",
+        "value": "—"
+      },
+      {
+        "label": "Disponibilidad",
+        "value": "—"
+      },
+      {
+        "label": "Idiomas",
+        "value": "—"
+      },
+      {
+        "label": "Enfoque",
+        "value": "—"
+      }
+    ]
+  },
+  "proyectos": [
+    {
+      "id": "p1",
+      "title": "Proyecto uno",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto en una o dos frases. Qué era, qué problema resolvía y cuál fue tu papel.",
+      "stack": [
+        "Herramienta",
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 101,
+        "hue": 186
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Proyecto dos",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 202,
+        "hue": 42
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Proyecto tres",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta",
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 303,
+        "hue": 268
+      }
+    },
+    {
+      "id": "p4",
+      "title": "Proyecto cuatro",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 404,
+        "hue": 12
+      }
+    },
+    {
+      "id": "p5",
+      "title": "Proyecto cinco",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 505,
+        "hue": 152
+      }
+    },
+    {
+      "id": "p6",
+      "title": "Proyecto seis",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta",
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 606,
+        "hue": 320
+      }
+    },
+    {
+      "id": "p7",
+      "title": "Proyecto siete",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 707,
+        "hue": 210
+      }
+    },
+    {
+      "id": "p8",
+      "title": "Proyecto ocho",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 808,
+        "hue": 88
+      }
+    },
+    {
+      "id": "p9",
+      "title": "Proyecto nueve",
+      "tag": "Categoría",
+      "year": "20XX",
+      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "stack": [
+        "Herramienta",
+        "Herramienta"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 909,
+        "hue": 340
+      }
+    }
+  ],
+  "habilidades": [
+    {
+      "name": "Habilidad A",
+      "family": "Núcleo",
+      "level": 0.95
+    },
+    {
+      "name": "Habilidad B",
+      "family": "Núcleo",
+      "level": 0.9
+    },
+    {
+      "name": "Habilidad C",
+      "family": "Núcleo",
+      "level": 0.82
+    },
+    {
+      "name": "Habilidad D",
+      "family": "Núcleo",
+      "level": 0.75
+    },
+    {
+      "name": "Habilidad E",
+      "family": "Oficio",
+      "level": 0.88
+    },
+    {
+      "name": "Habilidad F",
+      "family": "Oficio",
+      "level": 0.8
+    },
+    {
+      "name": "Habilidad G",
+      "family": "Oficio",
+      "level": 0.72
+    },
+    {
+      "name": "Habilidad H",
+      "family": "Oficio",
+      "level": 0.65
+    },
+    {
+      "name": "Habilidad I",
+      "family": "Oficio",
+      "level": 0.6
+    },
+    {
+      "name": "Habilidad J",
+      "family": "Herramientas",
+      "level": 0.78
+    },
+    {
+      "name": "Habilidad K",
+      "family": "Herramientas",
+      "level": 0.7
+    },
+    {
+      "name": "Habilidad L",
+      "family": "Herramientas",
+      "level": 0.62
+    },
+    {
+      "name": "Habilidad M",
+      "family": "Herramientas",
+      "level": 0.55
+    },
+    {
+      "name": "Habilidad N",
+      "family": "Herramientas",
+      "level": 0.5
+    }
+  ],
+  "trayectoria": [
+    {
+      "period": "20XX — 20XX",
+      "role": "Puesto o etapa",
+      "org": "Organización",
+      "detail": "Una o dos frases sobre lo que hiciste y qué dejaste hecho."
+    },
+    {
+      "period": "20XX — 20XX",
+      "role": "Puesto o etapa",
+      "org": "Organización",
+      "detail": "Una o dos frases. Sustituye este texto."
+    },
+    {
+      "period": "20XX — 20XX",
+      "role": "Puesto o etapa",
+      "org": "Organización",
+      "detail": "Una o dos frases. Sustituye este texto."
+    },
+    {
+      "period": "20XX — 20XX",
+      "role": "Puesto o etapa",
+      "org": "Organización",
+      "detail": "Una o dos frases. Sustituye este texto."
+    },
+    {
+      "period": "20XX — hoy",
+      "role": "Puesto actual",
+      "org": "Organización",
+      "detail": "Una o dos frases. Sustituye este texto."
+    }
+  ],
+  "contacto": {
+    "title": "Contacto",
+    "subtitle": "El Altar de Mensajes",
+    "intro": "Marcador de posición. Aquí va la invitación a escribirte y por qué canal prefieres que lo hagan.",
+    "links": [
+      {
+        "label": "Correo",
+        "value": "tu@correo",
+        "href": null,
+        "rune": "ansuz"
+      },
+      {
+        "label": "GitHub",
+        "value": "usuario",
+        "href": null,
+        "rune": "gebo"
+      },
+      {
+        "label": "LinkedIn",
+        "value": "usuario",
+        "href": null,
+        "rune": "mannaz"
+      },
+      {
+        "label": "Web",
+        "value": "tudominio",
+        "href": null,
+        "rune": "ingwaz"
+      }
+    ],
+    "endpoint": null
+  }
+}

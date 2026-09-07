@@ -1,0 +1,374 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   El panel de contenido.
+
+   Es una HERRAMIENTA, no una parte del portafolio, y se nota a propósito: sin
+   Cinzel, sin resplandores, sin animaciones de entrada. Hereda la paleta de
+   `ui/base.css` para no parecer una aplicación distinta pegada con cinta, pero
+   todo lo demás está puesto para leer formularios largos deprisa: densidad
+   alta, etiquetas pequeñas, y una sola columna de contenido con las listas
+   numeradas.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+body.admin-activo {
+  overflow: auto;
+  height: auto;
+  background: var(--bg, #06111a);
+}
+
+.ad {
+  --ad-fila: 46px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--sans);
+  color: var(--ink);
+}
+
+/* ── Barra ─────────────────────────────────────────────────────────────── */
+
+.ad__barra {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--glass-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ad__kicker {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #6d8388);
+}
+
+.ad__titulo {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ad__estado {
+  margin: 0 0 0 auto;
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+}
+
+.ad__estado--mal {
+  color: #ff9d7a;
+}
+
+.ad__acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.ad__boton {
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--arcane);
+  color: #052024;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.ad__boton:disabled {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink-faint, #6d8388);
+  cursor: default;
+}
+
+.ad__boton--linea {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ad__boton--linea:hover {
+  border-color: var(--arcane);
+  color: var(--arcane);
+}
+
+/* ── Cuerpo ────────────────────────────────────────────────────────────── */
+
+.ad__cuerpo {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  align-items: start;
+}
+
+.ad__lado {
+  position: sticky;
+  top: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 12px;
+  border-right: 1px solid var(--line);
+}
+
+.ad__pestania {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ad__pestania:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+}
+
+.ad__pestania[aria-current='true'] {
+  background: var(--arcane-dim, rgba(79, 230, 216, 0.12));
+  color: var(--arcane);
+}
+
+.ad__cuenta {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint, #6d8388);
+}
+
+.ad__lado-pie {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ad__enlace {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-faint, #6d8388);
+  font-family: inherit;
+  font-size: 0.74rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ad__enlace:hover {
+  color: var(--arcane);
+}
+
+.ad__hoja {
+  max-width: 1080px;
+  padding: 26px 30px 90px;
+}
+
+/* ── Grupos y campos ───────────────────────────────────────────────────── */
+
+.ad__grupo + .ad__grupo {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid var(--line);
+}
+
+.ad__grupo h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.ad__ayuda {
+  max-width: 68ch;
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+
+.ad__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.ad__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Los textos largos ocupan la fila entera; los cortos —un año, un nivel— se
+   quedan pequeños en vez de estirarse hasta parecer que esperan un párrafo. */
+.ad__campo--ancho {
+  grid-column: 1 / -1;
+}
+
+.ad__campo--corto {
+  max-width: 190px;
+}
+
+.ad__etiqueta {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #6d8388);
+}
+
+.ad__campo input,
+.ad__campo textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ad__campo input:focus,
+.ad__campo textarea:focus {
+  outline: none;
+  border-color: var(--arcane);
+  background: rgba(79, 230, 216, 0.05);
+}
+
+.ad__pista {
+  font-size: 0.71rem;
+  line-height: 1.45;
+  color: var(--ink-faint, #6d8388);
+}
+
+/* ── Listas ────────────────────────────────────────────────────────────── */
+
+.ad__lista {
+  list-style: none;
+  margin: 16px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ad__item {
+  padding: 12px 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ad__item .ad__campos {
+  margin-top: 12px;
+}
+
+.ad__item--compacta .ad__campos {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.ad__item-cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ad__indice {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint, #6d8388);
+}
+
+/* El resumen se actualiza mientras escribes el título: con nueve fichas
+   plegadas mentalmente, saber cuál es cuál sin leerlas enteras es la
+   diferencia entre encontrar una y recorrerlas todas. */
+.ad__resumen {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.ad__mandos {
+  display: flex;
+  gap: 4px;
+}
+
+.ad__mandos button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ad__mandos button:hover:not(:disabled) {
+  border-color: var(--arcane);
+  color: var(--arcane);
+}
+
+.ad__mandos button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.ad__borrar:hover:not(:disabled) {
+  border-color: #ff9d7a !important;
+  color: #ff9d7a !important;
+}
+
+@media (max-width: 780px) {
+  .ad__cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ad__lado {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ad__lado-pie {
+    flex-direction: row;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
