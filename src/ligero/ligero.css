@@ -339,6 +339,13 @@ body.ligero-activo::after {
   background: var(--arcane-dim);
 }
 
+/* El icono del botón de la hoja de vida no se estruja cuando la cabecera va
+   apretada: lo que cede es el texto. */
+.lg-cabecera__modo svg,
+.lg-boton svg {
+  flex-shrink: 0;
+}
+
 /* Un punto que respira: insinúa que al otro lado hay algo vivo. */
 .lg-punto {
   width: 6px;

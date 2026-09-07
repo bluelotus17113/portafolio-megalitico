@@ -21,7 +21,9 @@ import { oghamSVG, runaSVG } from '../utils/glifos.js';
 import { posterCanvas } from '../utils/posters.js';
 import { enviarContacto, formularioContacto } from '../ui/contacto.js';
 import { cambiarModo, haySoporteWebGL, PLENO } from '../modo.js';
+import { hojaDeVidaHTML, tituloHoja } from './HojaDeVida.js';
 import './ligero.css';
+import './impresion.css';
 
 const SECCION = Object.fromEntries(SECTIONS.map((s) => [s.id, s]));
 
@@ -108,6 +110,7 @@ export class Ligero {
         </div>
       </main>
       ${this._pie()}
+      ${hojaDeVidaHTML()}
     `;
   }
 
@@ -142,6 +145,7 @@ export class Ligero {
           <span class="lg-marca__nombre">${esc(IDENTITY.name)}</span>
         </a>
         <nav class="lg-nav" aria-label="Secciones">${enlaces}</nav>
+        ${this._botonHoja()}
         ${this._botonEscena('lg-cabecera__modo')}
         <span class="lg-progreso" aria-hidden="true"></span>
       </header>
@@ -159,6 +163,31 @@ export class Ligero {
       <button class="${clase}" type="button" data-a-escena>
         <span class="lg-punto" aria-hidden="true"></span>
         Ver en 3D
+      </button>`;
+  }
+
+  /**
+   * El botón de la hoja de vida.
+   *
+   * Va en la cabecera y no escondido en el pie porque el visitante que viene a
+   * por un currículo viene a por eso y a nada más: no debería tener que leerse
+   * el portafolio entero para encontrar la salida. Y va también en el pie, que
+   * es donde acaba quien sí lo ha leído.
+   *
+   * A diferencia del de la escena, este se pinta siempre. Imprimir no depende
+   * de que el equipo pueda con WebGL — de hecho es justo al revés: el que
+   * llega aquí porque su equipo no puede es el que más lo va a usar.
+   */
+  _botonHoja(clase = 'lg-cabecera__modo lg-cabecera__modo--hoja') {
+    return `
+      <button class="${clase}" type="button" data-imprimir>
+        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none"
+             stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 1.8v8.4" />
+          <path d="M4.6 7.2 8 10.5l3.4-3.3" />
+          <path d="M2.4 12.4v1.3h11.2v-1.3" />
+        </svg>
+        Hoja de vida
       </button>`;
   }
 
@@ -473,6 +502,7 @@ export class Ligero {
     return `
       <footer class="lg-pie">
         <p>Versión ligera, sin 3D.</p>
+        ${this._botonHoja('lg-boton lg-boton--linea')}
         ${salida}
       </footer>`;
   }
@@ -482,6 +512,34 @@ export class Ligero {
   _bind() {
     for (const boton of this.root.querySelectorAll('[data-a-escena]')) {
       boton.addEventListener('click', () => cambiarModo(PLENO));
+    }
+
+    // Imprimir es TODO lo que hace el botón. El PDF lo fabrica el navegador, y
+    // por eso el documento sale con texto de verdad y enlaces vivos en vez de
+    // con una captura de pantalla dentro.
+    for (const boton of this.root.querySelectorAll('[data-imprimir]')) {
+      boton.addEventListener('click', () => window.print());
+    }
+
+    // El título del documento es el nombre que el navegador propone para el
+    // fichero, así que se cambia mientras dura la impresión y se devuelve
+    // después. Cuelga de `beforeprint` y no del botón a propósito: quien
+    // imprima con Ctrl+P se lleva el fichero bien nombrado igual.
+    const previo = document.title;
+    window.addEventListener('beforeprint', () => {
+      document.title = tituloHoja();
+    });
+    window.addEventListener('afterprint', () => {
+      document.title = previo;
+    });
+
+    // La dirección del portafolio, al pie de la hoja: es lo único que le dice
+    // a quien tiene el PDF delante que al otro lado hay una isla.
+    const url = this.root.querySelector('[data-cv-url]');
+    if (url) {
+      const limpia = `${location.origin}${location.pathname}`.replace(/\/index\.html$/, '/');
+      url.href = limpia;
+      url.textContent = limpia.replace(/^https?:\/\//, '').replace(/\/$/, '');
     }
 
     this.root.addEventListener('submit', (e) => {

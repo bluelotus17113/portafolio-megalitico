@@ -1,0 +1,270 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   La hoja de vida en papel.
+
+   Esta hoja gobierna un documento que en pantalla NO EXISTE: `.cv` está en el
+   marcado desde que se monta la versión ligera, oculto, y sólo aparece cuando
+   el navegador cambia al medio `print`. Por eso todo lo de aquí abajo vive
+   dentro de `@media print` menos una línea.
+
+   ── Tinta negra sobre papel blanco ────────────────────────────────────────
+
+   No es sobriedad mal entendida, es cómo funciona la impresión: los
+   navegadores NO imprimen los fondos salvo que se les insista, así que el
+   fondo oscuro del portafolio desaparece y el texto claro que iba encima se
+   queda invisible sobre el blanco. Se puede forzar con `print-color-adjust`,
+   y sería un error: un currículo en negativo se lleva media cartuchera del
+   que lo imprima y se lee peor.
+
+   Lo que sí atraviesa es el trazo — los BORDES sí se imprimen. De ahí que
+   todas las separaciones de aquí sean líneas y no bandas de color.
+
+   ── El papel no se elige ──────────────────────────────────────────────────
+
+   `@page` fija los márgenes y NO el tamaño, a propósito. Poniendo `size: A4`
+   se imprime en A4 aunque la impresora tenga Carta, que es lo normal en medio
+   continente, y sale una hoja con el contenido desplazado y un borde en
+   blanco. Sin declararlo, cada cual imprime en su papel y el documento fluye:
+   por eso es una sola columna.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* En pantalla no está. La versión ligera no enseña dos veces lo mismo. */
+.cv {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 14mm 15mm 15mm;
+  }
+
+  /* De la versión ligera no se imprime NADA: ni el fondo animado, ni la
+     cabecera fija, ni el formulario de contacto, ni el botón que trajo aquí.
+     Se escribe por exclusión y no listando las piezas para que lo que se añada
+     mañana a la página tampoco se cuele en el papel. */
+  #ligero > *:not(.cv) {
+    display: none !important;
+  }
+
+  html.ligero-activo,
+  body.ligero-activo {
+    background: #fff;
+    color: #14181a;
+  }
+
+  .cv {
+    display: block;
+    font-family: var(--sans);
+    font-size: 9.6pt;
+    line-height: 1.45;
+    color: #14181a;
+    /* Tres líneas sueltas al pie o a la cabeza de una página son lo que hace
+       que un documento parezca mal armado. */
+    orphans: 3;
+    widows: 3;
+  }
+
+  .cv a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* ── Cabecera ─────────────────────────────────────────────────────────── */
+
+  .cv__cab {
+    border-bottom: 1.2pt solid #14181a;
+    padding-bottom: 3.5mm;
+    margin-bottom: 5mm;
+  }
+
+  .cv__nombre {
+    font-family: var(--serif);
+    font-size: 23pt;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .cv__rol {
+    font-size: 10.5pt;
+    letter-spacing: 0.02em;
+    color: #46545a;
+    margin: 1.5mm 0 0;
+  }
+
+  /* Los canales en una línea, separados por un punto medio dibujado con el
+     borde del elemento: así el separador no se copia al seleccionar el texto
+     ni se lo lleva un filtro de currículos leyendo el PDF. */
+  .cv__canales {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1mm 5mm;
+    list-style: none;
+    margin: 3mm 0 0;
+    padding: 0;
+    font-size: 9pt;
+    color: #46545a;
+  }
+
+  .cv__canales .cv__valor {
+    color: #14181a;
+    font-weight: 500;
+  }
+
+  /* ── Bloques ──────────────────────────────────────────────────────────── */
+
+  .cv__bloque {
+    margin-top: 6mm;
+  }
+
+  .cv__bloque h2 {
+    font-family: var(--serif);
+    font-size: 10.5pt;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin: 0 0 3mm;
+    padding-bottom: 1.4mm;
+    border-bottom: 0.5pt solid #b8c2c4;
+    /* Un encabezado al final de la página, con su contenido en la siguiente,
+       es el fallo de paginación más fácil de cometer y el más feo. */
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .cv__bloque p {
+    margin: 0 0 2mm;
+  }
+
+  /* ── Perfil ───────────────────────────────────────────────────────────── */
+
+  .cv__fichas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5mm 8mm;
+    margin: 3mm 0 0;
+  }
+
+  .cv__fichas div {
+    display: flex;
+    gap: 2mm;
+  }
+
+  .cv__fichas dt {
+    color: #46545a;
+  }
+
+  .cv__fichas dd {
+    margin: 0;
+    font-weight: 500;
+  }
+
+  /* ── Experiencia y habilidades ────────────────────────────────────────── */
+
+  /* La misma retícula para las dos: una columna estrecha de etiqueta a la
+     izquierda y el contenido a la derecha. Es la forma de un currículo y es
+     también, sin buscarlo, la retícula editorial de la versión ligera. */
+  .cv__hitos,
+  .cv__habilidades {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cv__hito,
+  .cv__familia {
+    display: grid;
+    grid-template-columns: 30mm 1fr;
+    gap: 5mm;
+    /* Partir una etapa por la mitad deja el puesto en una página y lo que
+       hiciste en otra. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cv__hito {
+    padding-bottom: 3.5mm;
+  }
+
+  .cv__hito + .cv__hito {
+    padding-top: 3.5mm;
+    border-top: 0.4pt solid #dbe2e3;
+  }
+
+  .cv__periodo,
+  .cv__familia dt {
+    color: #46545a;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+  }
+
+  .cv__puesto {
+    font-size: 10.5pt;
+    font-weight: 600;
+    margin: 0 0 1mm;
+  }
+
+  .cv__org {
+    font-weight: 400;
+    color: #46545a;
+  }
+
+  .cv__familia {
+    padding: 1.4mm 0;
+  }
+
+  .cv__familia dd {
+    margin: 0;
+  }
+
+  /* ── Proyectos ────────────────────────────────────────────────────────── */
+
+  .cv__proyectos {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cv__proyecto {
+    padding: 2.4mm 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cv__proyecto + .cv__proyecto {
+    border-top: 0.4pt solid #dbe2e3;
+  }
+
+  .cv__titulo {
+    font-size: 10pt;
+    font-weight: 600;
+    margin: 0 0 1mm;
+  }
+
+  .cv__meta,
+  .cv__pila,
+  .cv__enlace {
+    color: #46545a;
+    font-size: 8.8pt;
+    font-weight: 400;
+  }
+
+  .cv__pila,
+  .cv__enlace {
+    margin: 1mm 0 0;
+  }
+
+  /* ── Pie ──────────────────────────────────────────────────────────────── */
+
+  .cv__pie {
+    margin-top: 7mm;
+    padding-top: 2.5mm;
+    border-top: 0.5pt solid #b8c2c4;
+    font-size: 8.5pt;
+    color: #46545a;
+  }
+
+  .cv__pie a {
+    color: #14181a;
+  }
+}
