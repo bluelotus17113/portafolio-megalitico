@@ -54,6 +54,7 @@ export class Overlay {
     this.daylight = this.ui.querySelector('[data-daylight]');
     this.seasonHost = this.ui.querySelector('[data-estaciones]');
     this.help = this.ui.querySelector('.help');
+    this.sonidoBtn = this.ui.querySelector('[data-sonido]');
 
     this.activeId = null;
     this.panelState = null;
@@ -317,6 +318,29 @@ export class Overlay {
     );
   }
 
+
+
+  /**
+   * Estado del botón de sonido.
+   *
+   * Se llama con la devolución de llamada la primera vez y solo con el estado
+   * las siguientes, para que la tecla M y el botón acaben en el mismo sitio:
+   * quien alterna es siempre `Experience`, y aquí solo se pinta el resultado.
+   *
+   * @param {boolean} mudo
+   * @param {() => void} [onAlternar]
+   */
+  setSonido(mudo, onAlternar) {
+    if (!this.sonidoBtn) return;
+    if (onAlternar) {
+      this._onSonido = onAlternar;
+      this.sonidoBtn.addEventListener('click', () => this._onSonido());
+    }
+    this.sonidoBtn.toggleAttribute('data-mudo', !!mudo);
+    this.sonidoBtn.title = mudo ? 'Activar el sonido (M)' : 'Silenciar el sonido (M)';
+    const etiqueta = this.sonidoBtn.querySelector('.sr-only');
+    if (etiqueta) etiqueta.textContent = mudo ? 'Activar el sonido' : 'Silenciar el sonido';
+  }
 
   setTooltip(text) {
     if (!text) {

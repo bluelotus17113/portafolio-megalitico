@@ -93,10 +93,22 @@
           <span class="compass__label" data-compass-label>El Círculo</span>
         </div>
 
-        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu">
-          <span class="menu-toggle__lines" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="sr-only">Abrir menú</span>
-        </button>
+        <div class="topbar__acciones">
+          <button class="sonido" type="button" data-sonido title="Silenciar el sonido (M)">
+            <svg class="sonido__icono" viewBox="0 0 24 24" aria-hidden="true">
+              <path class="sonido__cono" d="M4.2 9.2h3.3L12 5.4v13.2L7.5 14.8H4.2z" />
+              <path class="sonido__onda" d="M15 9.7a3.3 3.3 0 0 1 0 4.6" />
+              <path class="sonido__onda" d="M17.5 7.2a6.8 6.8 0 0 1 0 9.6" />
+              <line class="sonido__tacha" x1="4.8" y1="19.2" x2="19.2" y2="4.8" />
+            </svg>
+            <span class="sr-only">Silenciar el sonido</span>
+          </button>
+
+          <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu">
+            <span class="menu-toggle__lines" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="sr-only">Abrir menú</span>
+          </button>
+        </div>
       </header>
 
       <!-- Índice lateral de secciones -->
@@ -160,6 +172,7 @@
             <dt><kbd>1</kbd> … <kbd>5</kbd></dt><dd>Saltar a una sección</dd>
             <dt><kbd>C</kbd></dt><dd>Caminar — <kbd>W A S D</kbd>, <kbd>Espacio</kbd> para saltar, <kbd>Mayús</kbd> para correr</dd>
             <dt><kbd>F</kbd></dt><dd>Vuelo libre — <kbd>W A S D</kbd>, <kbd>Espacio</kbd>, <kbd>Ctrl</kbd></dd>
+            <dt><kbd>M</kbd></dt><dd>Silenciar el sonido de la isla</dd>
             <dt><kbd>Esc</kbd></dt><dd>Volver al mirador</dd>
             <dt class="solo-tactil">Con el dedo</dt>
             <dd class="solo-tactil">Palanca abajo a la izquierda para andar; arrastra para mirar</dd>

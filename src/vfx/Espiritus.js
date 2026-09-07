@@ -566,4 +566,30 @@ export class Espiritus {
       this.uniformesEstela.uCursor.value = this.cursor;
     }
   }
+
+  /**
+   * El espíritu despierto más cercano a un punto.
+   *
+   * Existe para que el sonido no tenga que hurgar en `bichos`: quien pregunta
+   * quiere saber si hay alguien cerca, no cómo está guardada la nube. Y los
+   * dormidos no cuentan aunque estén a dos metros — están enterrados bajo el
+   * cerro, y una campanilla saliendo del suelo no se explica.
+   *
+   * @param {THREE.Vector3} punto
+   * @returns {{indice: number, distancia: number}|null}
+   */
+  masCercano(punto) {
+    let indice = -1;
+    let mejor = Infinity;
+    for (let i = 0; i < this.count; i++) {
+      const b = this.bichos[i];
+      if (b.estado === DORMIDA) continue;
+      const d = b.pos.distanceTo(punto);
+      if (d < mejor) {
+        mejor = d;
+        indice = i;
+      }
+    }
+    return indice < 0 ? null : { indice, distancia: mejor };
+  }
 }

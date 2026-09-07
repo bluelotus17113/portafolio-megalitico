@@ -21,6 +21,7 @@ import { esTactil, MandoTactil } from '../nav/MandoTactil.js';
 import { construirColisionadores } from '../nav/Colliders.js';
 import { sembrarCalzos } from '../world/Calzos.js';
 import { Overlay } from '../ui/Overlay.js';
+import { Sonido } from '../audio/Sonido.js';
 import { tickMaterials } from '../vfx/materials.js';
 import { aplicarEscena, catalogar } from '../editor/registro.js';
 import { seVieneDePulsarEntrar } from '../modo.js';
@@ -38,6 +39,9 @@ export class Experience {
     this.running = false;
     this.activeSection = null;
     this.elapsed = 0;
+
+    /** Reutilizable: la posición del brasero, que se pregunta cada fotograma. */
+    this._pFuego = new THREE.Vector3();
 
     this._frameTimes = [];
     this._perfTimer = 0;
@@ -306,6 +310,20 @@ export class Experience {
       this.rig.onModo = (modo) => this.mando.mostrar(modo === 'walk');
     }
 
+    // El sonido de la isla. Se CONSTRUYE aquí pero no suena: el contexto de
+    // audio se abre en `enter()`, dentro del clic de Explorar, porque fuera de
+    // un gesto el navegador lo deja suspendido y la isla se queda muda sin que
+    // nada falle.
+    this.sonido = new Sonido({
+      field: this.world.field,
+      fuego: () => {
+        const contacto = this.world.getShrine('contact');
+        if (!contacto?.fire) return null;
+        return contacto.fire.getWorldPosition(this._pFuego);
+      },
+    });
+    this.overlay.setSonido(this.sonido.mudo, () => this.overlay.setSonido(this.sonido.alternarMudo()));
+
     this.interaction = new Interaction(this.camera, this.canvas, this.world.hotspotObjects);
     this.interaction.enabled = false;
     this.interaction.onSelect.add((hotspot) => this._onSelect(hotspot));
@@ -341,6 +359,9 @@ export class Experience {
       }
       if (e.key === 'c' && !e.ctrlKey && !e.metaKey) {
         return this.toggleWalk();
+      }
+      if (e.key === 'm' && !e.ctrlKey && !e.metaKey) {
+        return this.overlay.setSonido(this.sonido.alternarMudo());
       }
       const index = Number(e.key);
       if (Number.isInteger(index) && index >= 1 && index <= SECTIONS.length) {
@@ -432,6 +453,9 @@ export class Experience {
    */
   enter({ gesto = true } = {}) {
     this.overlay.enter();
+    // Antes que nada, mientras el gesto del clic sigue vivo.
+    if (gesto) this.sonido?.arrancar();
+    else this.sonido?.armarPrimerGesto();
     this.rig.enabled = true;
     this.interaction.enabled = true;
     this.overlay.setActive(null);
@@ -635,6 +659,14 @@ export class Experience {
       focus: this.rig?.smooth.target,
     });
 
+    this.sonido?.update(dt, {
+      camera: this.camera,
+      modo: this.rig?.mode ?? 'orbit',
+      walk: this.rig?.walk ?? null,
+      estacion: this.world.time?.estacionId,
+      espiritus: this.world.espiritus ?? null,
+    });
+
     this.postfx.render(dt);
     this._trackPerformance(dt);
   }
@@ -689,6 +721,7 @@ export class Experience {
     this.stop();
     window.removeEventListener('resize', this._onResize);
     window.removeEventListener('keydown', this._onKey);
+    this.sonido?.dispose();
     this.rig?.dispose();
     this.interaction?.dispose();
     this.postfx?.dispose();

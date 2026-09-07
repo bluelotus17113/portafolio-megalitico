@@ -131,6 +131,95 @@
   white-space: nowrap;
 }
 
+/* Sonido y menú van juntos a la derecha: la barra reparte con
+ * `space-between`, y suelto el botón de sonido se plantaba en mitad del ancho,
+ * a medio camino de todo. */
+.topbar__acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Sonido ────────────────────────────────────────────────────────────
+ *
+ * El botón vive en la barra superior y no en el pie con las píldoras de hora
+ * y estación a propósito: aquello son ajustes de la escena y esto es un
+ * permiso. Quien entra con el volumen alto tiene que poder cortarlo sin
+ * buscar, y lo primero que se mira es la esquina.
+ */
+.sonido {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.3s, background 0.3s, color 0.3s;
+}
+
+.sonido:hover {
+  border-color: var(--line-strong);
+}
+
+.sonido__icono {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Las ondas laten flojito mientras suena: es el único indicador de que hay
+ * audio antes de subir el volumen. */
+.sonido__onda {
+  opacity: 0.85;
+  transition: opacity 0.25s;
+  animation: sonido-onda 2.6s var(--ease) infinite;
+}
+
+.sonido__onda:nth-of-type(3) {
+  animation-delay: 0.35s;
+}
+
+@keyframes sonido-onda {
+  0%, 100% { opacity: 0.35; }
+  45% { opacity: 1; }
+}
+
+/* La tacha se dibuja de una pasada al silenciar en vez de aparecer de golpe. */
+.sonido__tacha {
+  stroke-dasharray: 21;
+  stroke-dashoffset: 21;
+  transition: stroke-dashoffset 0.3s var(--ease);
+}
+
+.sonido[data-mudo] {
+  color: var(--ink-dim);
+}
+
+.sonido[data-mudo] .sonido__onda {
+  opacity: 0;
+  animation: none;
+}
+
+.sonido[data-mudo] .sonido__tacha {
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sonido__onda {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
 .menu-toggle {
   width: 40px;
   height: 40px;
