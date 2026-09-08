@@ -31,7 +31,7 @@
  *    medias obliga a inventarse texto para poder cerrar el portátil.
  */
 
-import { CONTENIDO } from '../content.js';
+import { CONTENIDO, ESTADOS } from '../content.js';
 import { esc } from '../utils/html.js';
 import './admin.css';
 
@@ -250,6 +250,13 @@ export class Admin {
         campo({ ruta: `proyectos.${i}.title`, etiqueta: 'Título', valor: p.title }),
         campo({ ruta: `proyectos.${i}.tag`, etiqueta: 'Categoría', valor: p.tag, ancho: 'corto' }),
         campo({ ruta: `proyectos.${i}.year`, etiqueta: 'Año', valor: p.year, ancho: 'corto' }),
+        seleccion({
+          ruta: `proyectos.${i}.estado`,
+          etiqueta: 'Estado',
+          valor: p.estado,
+          opciones: ESTADOS,
+          ancho: 'corto',
+        }),
         area({ ruta: `proyectos.${i}.summary`, etiqueta: 'Resumen', valor: p.summary, filas: 3 }),
         campo({
           ruta: `proyectos.${i}.stack`,
@@ -541,6 +548,7 @@ function estructurar(origen) {
     summary: '',
     stack: [],
     url: null,
+    estado: 'progreso',
     ...p,
     poster: { seed: 100 + i * 11, hue: (i * 47) % 360, ...p.poster },
   }));
@@ -602,6 +610,8 @@ function nuevoDe(ruta, arr) {
         summary: '',
         stack: [],
         url: null,
+        // Un proyecto se añade cuando se empieza, no cuando se acaba.
+        estado: 'progreso',
         // Semilla distinta de todas las que ya hay: dos carteles iguales en el
         // círculo se leen como un fallo de dibujado.
         poster: { seed: 1 + Math.max(0, ...arr.map((p) => p.poster?.seed ?? 0)), hue: (arr.length * 47) % 360 },
@@ -634,6 +644,22 @@ function campo({ ruta, etiqueta, valor, tipo = '', ayuda = '', ancho = '' }) {
       <input type="text" value="${esc(String(valor ?? ''))}"
              data-ruta="${ruta}" ${tipo ? `data-tipo="${tipo}"` : ''} spellcheck="false" />
       ${ayuda ? `<span class="ad__pista">${esc(ayuda)}</span>` : ''}
+    </label>`;
+}
+
+/**
+ * Desplegable. Se usa para el estado y no una casilla de texto por lo obvio:
+ * escrito a mano, «En Progreso» y «en progreso» son dos estados distintos y el
+ * portafolio no reconocería ninguno de los dos.
+ */
+function seleccion({ ruta, etiqueta, valor, opciones, ancho = '' }) {
+  const items = Object.entries(opciones)
+    .map(([id, texto]) => `<option value="${id}"${id === valor ? ' selected' : ''}>${esc(texto)}</option>`)
+    .join('');
+  return `
+    <label class="ad__campo${ancho ? ` ad__campo--${ancho}` : ''}">
+      <span class="ad__etiqueta">${esc(etiqueta)}</span>
+      <select data-ruta="${ruta}">${items}</select>
     </label>`;
 }
 

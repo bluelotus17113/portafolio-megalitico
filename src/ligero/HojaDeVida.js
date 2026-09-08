@@ -38,7 +38,7 @@
  * elegante, es un descuido.
  */
 
-import { ABOUT, CONTACT, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
+import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
 import { esc } from '../utils/html.js';
 
 /** ¿Este valor dice algo? Los marcadores de posición de `content.js` no. */
@@ -151,7 +151,10 @@ function habilidades() {
 function proyectos() {
   if (!PROJECTS?.length) return '';
   const fichas = PROJECTS.map((p) => {
-    const meta = [p.tag, p.year].filter(tieneValor).map(esc).join(' · ');
+    // El estado entra en la línea de datos, como una palabra más. De
+    // distintivo de color no valdría: los navegadores no imprimen los fondos,
+    // así que en el PDF sería una palabra suelta sin nada alrededor.
+    const meta = [p.tag, p.year, etiquetaEstado(p.estado)].filter(tieneValor).map(esc).join(' · ');
     const pila = p.stack?.length ? `<p class="cv__pila">${p.stack.map(esc).join(' · ')}</p>` : '';
     // El enlace se escribe con la dirección visible y no con un «Ver proyecto»:
     // impreso, un texto que oculta su destino no lleva a ninguna parte.

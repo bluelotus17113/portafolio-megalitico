@@ -24,7 +24,7 @@
 
 import puppeteer from 'puppeteer-core';
 import { existsSync, readFileSync } from 'node:fs';
-import { ABOUT, CONTACT, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../src/content.js';
+import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../src/content.js';
 
 const BASE = process.env.URL ?? 'http://127.0.0.1:5173/';
 const SALIDA = process.env.PDF ?? '/tmp/hoja-check.pdf';
@@ -115,6 +115,16 @@ const sinFam = falta([...new Set(SKILLS.map((s) => s.family))]);
 comprobar(sinFam.length === 0, 'Y sus familias', sinFam.join(', '));
 const sinProy = falta(PROJECTS.map((p) => p.title));
 comprobar(sinProy.length === 0, `Los ${PROJECTS.length} proyectos`, sinProy.join(', '));
+// En papel el estado no puede ser un distintivo de color —los fondos no se
+// imprimen—, así que va como una palabra más de la línea de datos. Aquí se
+// comprueba que esa palabra llegó.
+const conEstado = PROJECTS.filter((p) => etiquetaEstado(p.estado));
+const estados = [...new Set(conEstado.map((p) => etiquetaEstado(p.estado)))];
+comprobar(
+  conEstado.length === 0 || falta(estados).length === 0,
+  'Con el estado de cada uno escrito',
+  estados.join(' / ')
+);
 const canales = (CONTACT.links ?? []).map((l) => l.value).filter(Boolean);
 comprobar(falta(canales).length === 0, 'Y los canales de contacto', falta(canales).join(', '));
 comprobar(falta(ABOUT.body ?? []).length === 0, 'El texto de presentación entero');

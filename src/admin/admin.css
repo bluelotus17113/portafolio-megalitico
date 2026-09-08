@@ -267,6 +267,7 @@ body.admin-activo {
 }
 
 .ad__campo input,
+.ad__campo select,
 .ad__campo textarea {
   width: 100%;
   padding: 9px 11px;
@@ -281,6 +282,7 @@ body.admin-activo {
 }
 
 .ad__campo input:focus,
+.ad__campo select:focus,
 .ad__campo textarea:focus {
   outline: none;
   border-color: var(--arcane);

@@ -176,6 +176,18 @@ console.log('\nVersión ligera (?modo=ligero)');
       .then((r) => (r.ok ? r.json().then((d) => d.proyectos?.length ?? -1) : -1))
       .catch(() => -1)
   );
+  // El estado de cada proyecto tiene que salir en su ficha. Es un campo que
+  // pintan cuatro sitios distintos, y de los que se caen de uno sin que nada
+  // falle: la ficha sigue viéndose perfecta, sólo que sin decir en qué punto
+  // está el proyecto.
+  const distintivos = await page.evaluate(
+    () => document.querySelectorAll('.lg-ficha .estado').length
+  );
+  comprobar(
+    esperados < 0 ? distintivos > 0 : distintivos === esperados,
+    'cada proyecto enseña su estado',
+    `${distintivos} distintivos`
+  );
   comprobar(
     esperados < 0 ? fichas > 0 : fichas === esperados,
     esperados < 0 ? 'hay fichas de proyecto' : 'un proyecto por entrada de content.js',

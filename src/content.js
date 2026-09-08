@@ -78,3 +78,20 @@ export const CONTACT = datos.contacto;
  * escribirlo. El resto del proyecto sigue tirando de los seis de arriba.
  */
 export const CONTENIDO = datos;
+
+/**
+ * En qué punto está un proyecto.
+ *
+ * Vive aquí, y no repetido en cada sitio que lo pinta, porque lo enseñan
+ * CUATRO: el panel de la escena, la ficha de la versión ligera, la hoja de
+ * vida y el propio formulario de administración. Con la etiqueta copiada a
+ * mano en los cuatro, el día que «progreso» pase a llamarse otra cosa se
+ * quedan tres diciendo lo viejo.
+ */
+export const ESTADOS = {
+  terminado: 'Terminado',
+  progreso: 'En progreso',
+};
+
+/** @returns {string|null} La etiqueta, o null si el proyecto no lo declara. */
+export const etiquetaEstado = (id) => ESTADOS[id] ?? null;

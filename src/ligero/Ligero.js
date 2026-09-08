@@ -14,7 +14,7 @@
  */
 
 import { SECTIONS } from '../config.js';
-import { ABOUT, CONTACT, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
+import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
 import { esc, hex } from '../utils/html.js';
 import { runeFor } from '../utils/runes.js';
 import { oghamSVG, runaSVG } from '../utils/glifos.js';
@@ -312,6 +312,11 @@ export class Ligero {
               <span class="lg-ficha__indice">${String(i + 1).padStart(2, '0')}</span>
               <span>${esc(p.tag)}</span>
               <span class="lg-ficha__ano">${esc(p.year)}</span>
+              ${
+                etiquetaEstado(p.estado)
+                  ? `<span class="estado estado--${esc(p.estado)}">${esc(etiquetaEstado(p.estado))}</span>`
+                  : ''
+              }
             </p>
             <h3 class="lg-ficha__titulo">${esc(p.title)}</h3>
             <p class="lg-ficha__resumen">${esc(p.summary)}</p>

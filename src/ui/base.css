@@ -340,6 +340,39 @@ kbd {
 /* ───────────── Componentes que comparten la escena y la ligera ────────── */
 
 /* Etiquetas de tecnología */
+/* ── Estado de un proyecto ──────────────────────────────────────────────
+ *
+ * Va aquí, entre los componentes compartidos, porque lo pintan igual el panel
+ * de la escena y la ficha de la versión ligera. La hoja de vida NO lo usa: en
+ * papel el color no se imprime, y allí el estado entra como una palabra más de
+ * la línea de datos.
+ *
+ * El terminado va en el turquesa arcano —el color con el que la isla marca lo
+ * que está vivo— y el que sigue en marcha en el ámbar del fuego. Los dos se
+ * distinguen además por el texto, que es lo que hace que sirvan también para
+ * quien no separa esos dos tonos. */
+.estado {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.estado--terminado {
+  color: var(--arcane);
+}
+
+.estado--progreso {
+  color: var(--ember);
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;

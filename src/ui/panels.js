@@ -6,7 +6,7 @@
  * arrastrar nada del motor 3D detrás.
  */
 
-import { ABOUT, CONTACT, EXPERIENCE, PROJECTS, SKILLS } from '../content.js';
+import { ABOUT, CONTACT, EXPERIENCE, PROJECTS, SKILLS, etiquetaEstado } from '../content.js';
 import { runeFor } from '../utils/runes.js';
 import { posterCanvas } from '../utils/posters.js';
 import { formularioContacto } from './contacto.js';
@@ -70,6 +70,13 @@ export function renderProjects(section) {
   `;
 }
 
+/** El distintivo de estado, para las tres vistas que lo enseñan igual. */
+function estado(project) {
+  const texto = etiquetaEstado(project.estado);
+  if (!texto) return '';
+  return ` <span class="estado estado--${esc(project.estado)}">${esc(texto)}</span>`;
+}
+
 export function renderProject(project) {
   const poster = posterCanvas(project.poster ?? { seed: 1, hue: 190 }).toDataURL('image/webp', 0.85);
   const tags = project.stack?.length
@@ -82,7 +89,9 @@ export function renderProject(project) {
   return `
     <div class="stagger">
       <button class="back" type="button" data-back="projects">← Círculo de monolitos</button>
-      <p class="panel__kicker">${esc(project.tag)} · ${esc(project.year)}</p>
+      <p class="panel__kicker">
+        ${esc(project.tag)} · ${esc(project.year)}${estado(project)}
+      </p>
       <h2 class="panel__title">${esc(project.title)}</h2>
       <img class="poster" src="${poster}" alt="Lámina del proyecto ${esc(project.title)}" />
       <p class="panel__text">${esc(project.summary)}</p>
