@@ -122,14 +122,13 @@ export function editorPlugin({
       return {
         server: {
           watch: {
-            // El JSON de la escena NO dispara recarga.
-            //
-            // El editor ya ha aplicado el cambio en vivo antes de guardar, así
-            // que recargar solo sirve para perder la selección y volver a
-            // construir el mundo entero. Se invalida el módulo a mano (ver
-            // más abajo) para que la SIGUIENTE carga completa lo lea del disco
-            // en vez de servir la copia que Vite tiene cacheada.
-            ignored: [`**/${escena}`],
+            // Nada se ignora aquí. Los dos JSON que escriben los editores
+            // —la escena y el contenido— se vigilan y su recarga se corta en
+            // `handleHotUpdate`; ver la nota de ahí. Ignorarlos, que era como
+            // estaba, evitaba la recarga pero también dejaba a Vite sirviendo
+            // para siempre la copia cacheada: una edición a mano del JSON, o
+            // un `git checkout`, no llegaban nunca al navegador.
+            ignored: [],
           },
         },
       };
@@ -140,7 +139,7 @@ export function editorPlugin({
     },
 
     /**
-     * El contenido se vigila, pero su cambio NO recarga la página.
+     * El contenido y la escena se vigilan, pero su cambio NO recarga la página.
      *
      * Las dos mitades hacen falta y por motivos distintos. Vigilarlo es lo que
      * hace que una edición a mano del JSON —o un `git checkout`, o cambiar de
@@ -156,7 +155,7 @@ export function editorPlugin({
      * justo después de haber guardado.
      */
     handleHotUpdate({ file }) {
-      if (file !== resolve(raiz, contenido)) return;
+      if (file !== resolve(raiz, contenido) && file !== resolve(raiz, escena)) return;
       // No hay que invalidar nada a mano: Vite ya lo ha hecho al ver el cambio
       // del fichero, antes de llamar a este gancho. Lo único que aporta esto
       // es la lista vacía, o sea «no hay nada que actualizar en caliente».
