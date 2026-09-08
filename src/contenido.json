@@ -109,12 +109,13 @@
       "tag": "Videojuego · En equipo",
       "year": "2026",
       "estado": "progreso",
-      "summary": "Juego de terror y extracción para ocho jugadores en línea, en 3D con Godot. Lo desarrollo con Tote Role, el equipo indie con el que trabajo desde 2020: es el proyecto donde el trabajo no es sólo mío, sino coordinado con otros desarrolladores y artistas.",
+      "summary": "Juego de terror y extracción para ocho jugadores en línea, en 3D con Godot. Lo desarrollo con Tote Role, el equipo indie con el que trabajo desde 2020, y mi parte es el diseño de juego y la construcción de los escenarios 3D en Blender: el terror por extracción se sostiene sobre el mapa —rutas, sitios donde esconderse, qué se ve desde dónde—, así que diseño y escenario son aquí el mismo trabajo.",
       "stack": [
+        "Diseño de juego",
+        "Blender",
         "Godot 4",
-        "GDScript",
-        "Multijugador",
-        "3D"
+        "3D",
+        "Multijugador"
       ],
       "url": null,
       "poster": {
@@ -267,9 +268,9 @@
     },
     {
       "period": "sep. 2020 — actualidad",
-      "role": "Desarrollador de videojuegos",
+      "role": "Diseño de juego y entornos 3D",
       "org": "Tote Role — equipo indie",
-      "detail": "Equipo indie de desarrollo de videojuegos. Trabajo con otros desarrolladores y artistas en los proyectos del estudio, actualmente en Trypophobia, un juego de terror multijugador para ocho jugadores hecho en Godot."
+      "detail": "Equipo indie de desarrollo de videojuegos. Me ocupo del diseño de juego y de construir los escenarios 3D en Blender, en coordinación con el resto del equipo. Ahora en Trypophobia, un juego de terror y extracción para ocho jugadores hecho en Godot."
     }
   ],
   "contacto": {
