@@ -9,9 +9,28 @@
    numeradas.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* A LOS DOS, y con `visible`.
+ *
+ * `base.css` le quita el desplazamiento al documento entero para que la escena
+ * pueda ocupar la ventana, y aquí hay que devolvérselo. Devolviéndoselo sólo a
+ * `body` —que es como estaba— `html` se queda en `overflow: hidden` y el
+ * resultado es que **la rueda del ratón no hace nada y no aparece barra**:
+ * medido, `scrollY` se quedaba en 0 con el contenido midiendo 3591 px en una
+ * ventana de 900. Sólo se movía llamando a `scrollTo` desde la consola, así
+ * que del tercer proyecto en adelante no se podía llegar a los campos.
+ *
+ * Y `visible` en vez de `auto` por lo mismo que en la versión ligera: con un
+ * `overflow` que no sea `visible`, el elemento pasa a ser el contenedor de
+ * desplazamiento de lo que lleva dentro y `position: sticky` se ancla a él.
+ * Con `auto` aquí, la barra superior del panel se anclaba a un `body` que no
+ * desplaza nada y se iba hacia arriba con el resto del contenido. */
+html.admin-activo,
 body.admin-activo {
-  overflow: auto;
+  overflow: visible;
   height: auto;
+}
+
+body.admin-activo {
   background: var(--bg, #06111a);
 }
 
@@ -119,6 +138,11 @@ body.admin-activo {
   gap: 2px;
   padding: 18px 12px;
   border-right: 1px solid var(--line);
+  /* En una ventana baja el lateral no cabe entero, y pegado como está no hay
+     forma de bajar hasta el final: se recorta y punto. Con su propio
+     desplazamiento sigue llegándose a «Ver la isla». */
+  max-height: calc(100vh - 62px);
+  overflow-y: auto;
 }
 
 .ad__pestania {

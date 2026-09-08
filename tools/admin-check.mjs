@@ -22,11 +22,20 @@
  */
 
 import puppeteer from 'puppeteer-core';
-import { copyFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 
 const BASE = process.env.URL ?? 'http://127.0.0.1:5173/';
 const JSON_RUTA = 'src/contenido.json';
-const COPIA = '/tmp/contenido-check.json';
+/**
+ * La copia de seguridad NO va en `/tmp`.
+ *
+ * Aquí `/tmp` es tmpfs, o sea RAM: un reinicio a mitad de prueba —y esta
+ * máquina ya se ha reiniciado sola dos veces trabajando en este proyecto— se
+ * lleva la copia y deja `src/contenido.json` con la marca de prueba dentro.
+ * Con el contenido de verdad escrito, eso es perder el texto del portafolio.
+ * `node_modules/.cache` está ignorado por git y sobrevive al reinicio.
+ */
+const COPIA = 'node_modules/.cache/contenido-check.json';
 
 const CHROME = [process.env.CHROME_PATH, '/usr/bin/chromium', '/usr/bin/google-chrome-stable']
   .filter(Boolean)
@@ -44,6 +53,7 @@ const comprobar = (ok, texto, detalle = '') => {
 const leerDisco = () => JSON.parse(readFileSync(JSON_RUTA, 'utf8'));
 
 // Copia de seguridad ANTES de abrir nada.
+mkdirSync('node_modules/.cache', { recursive: true });
 copyFileSync(JSON_RUTA, COPIA);
 const original = readFileSync(JSON_RUTA, 'utf8');
 
@@ -85,6 +95,59 @@ try {
   // huérfanos los botones: seis cuentas idénticas no prueban nada.
   comprobar(distintas >= 4, 'Y cada una es distinta de las demás', `${distintas} tamaños distintos`);
 
+  // ── 1b. La página se puede desplazar ────────────────────────────────────
+  //
+  // Con nueve proyectos el formulario mide cuatro pantallas. `base.css` le
+  // quita el desplazamiento al documento para que la escena ocupe la ventana,
+  // y devolvérselo sólo a `body` dejaba la página SORDA A LA RUEDA y sin
+  // barra: medido, `scrollY` se quedaba en 0 con 3591 px de contenido en una
+  // ventana de 900, y del tercer proyecto en adelante no se llegaba a los
+  // campos. No es un detalle de estilo: era la mitad del panel inalcanzable.
+  await page.evaluate(async () => {
+    document.querySelector('[data-seccion="proyectos"]').click();
+    await new Promise((r) => setTimeout(r, 60));
+    window.scrollTo(0, 0);
+  });
+  await page.mouse.move(800, 500);
+  await page.mouse.wheel({ deltaY: 1200 });
+  await new Promise((r) => setTimeout(r, 250));
+  const desplazamiento = await page.evaluate(() => ({
+    conRueda: Math.round(window.scrollY),
+    alto: document.documentElement.scrollHeight,
+    ventana: document.documentElement.clientHeight,
+    htmlOverflow: getComputedStyle(document.documentElement).overflowY,
+    barraArriba: Math.round(document.querySelector('.ad__barra').getBoundingClientRect().top),
+  }));
+  comprobar(
+    desplazamiento.alto > desplazamiento.ventana * 2,
+    'El formulario de proyectos es más largo que la ventana',
+    `${desplazamiento.alto} px en ${desplazamiento.ventana}`
+  );
+  comprobar(
+    desplazamiento.conRueda > 900,
+    'Y la rueda del ratón lo desplaza',
+    `scrollY ${desplazamiento.conRueda}`
+  );
+  comprobar(
+    desplazamiento.htmlOverflow !== 'hidden',
+    'El documento no está bloqueado, así que el navegador pinta su barra',
+    desplazamiento.htmlOverflow
+  );
+  comprobar(
+    desplazamiento.barraArriba === 0,
+    'Y la barra superior se queda pegada arriba al bajar',
+    `${desplazamiento.barraArriba} px`
+  );
+
+  // Cambiar de sección devuelve arriba: si no, se aterriza en mitad de la
+  // sección nueva sin haber visto su título ni la nota que la explica.
+  const vuelta = await page.evaluate(async () => {
+    document.querySelector('[data-seccion="habilidades"]').click();
+    await new Promise((r) => setTimeout(r, 120));
+    return Math.round(window.scrollY);
+  });
+  comprobar(vuelta === 0, 'Cambiar de sección vuelve arriba del todo', `scrollY ${vuelta}`);
+
   // ── 2. Escribir no repinta ──────────────────────────────────────────────
   //
   // El defecto clásico de estos paneles: cada tecla vuelve a pintar el
@@ -96,7 +159,10 @@ try {
     const campo = document.querySelector('[data-ruta="identidad.name"]');
     campo.focus();
     campo.setSelectionRange(2, 2);
-    return { mismo: document.activeElement === campo, cursor: campo.selectionStart };
+    // Se guarda el valor de PARTIDA en vez de darlo por sabido: la prueba
+    // esperaba «TU NOMBRE» y empezó a fallar en cuanto el panel se usó para lo
+    // que es. Una comprobación que depende del contenido no comprueba el panel.
+    return { mismo: document.activeElement === campo, cursor: campo.selectionStart, antes: campo.value };
   });
   await page.type('[data-ruta="identidad.name"]', 'XY');
   const trasEscribir = await page.evaluate(() => {
@@ -108,8 +174,9 @@ try {
     };
   });
   comprobar(foco.mismo && trasEscribir.sigueConFoco, 'Escribir no le quita el foco a la casilla');
+  const esperado = `${foco.antes.slice(0, 2)}XY${foco.antes.slice(2)}`;
   comprobar(
-    trasEscribir.cursor === 4 && trasEscribir.valor.startsWith('TUXY'),
+    trasEscribir.cursor === 4 && trasEscribir.valor === esperado,
     'Y el cursor se queda donde estaba, no salta al final',
     `«${trasEscribir.valor}» con el cursor en ${trasEscribir.cursor}`
   );

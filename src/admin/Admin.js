@@ -60,6 +60,10 @@ export class Admin {
 
   montar() {
     document.title = 'Panel · Portafolio';
+    // La clase va en `html` Y en `body`: `base.css` le quita el desplazamiento
+    // a los dos, y devolvérselo a uno solo deja la página sin barra y sorda a
+    // la rueda. Ver la nota de `admin.css`.
+    document.documentElement.classList.add('admin-activo');
     this.raiz.classList.add('admin-activo');
     this.caja = document.createElement('div');
     this.caja.className = 'ad';
@@ -389,6 +393,10 @@ export class Admin {
           p.setAttribute('aria-current', String(p.dataset.seccion === this.seccion));
         }
         this._repintarHoja();
+        // Y arriba del todo. Ahora que la página se desplaza, cambiar de
+        // sección estando abajo dejaba al que edita en mitad de la sección
+        // nueva, sin haber visto ni su título ni la nota que la explica.
+        window.scrollTo({ top: 0 });
         return;
       }
       if (boton.dataset.ver) return this._ver(boton.dataset.ver);
