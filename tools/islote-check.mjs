@@ -153,7 +153,16 @@ const datos = await page.evaluate(() => {
   const PENDIENTE = 0.62;
   let bloqueo = null;
   let y = f.walkHeight(c * (dDesde - 4), s * (dDesde - 4), 5);
-  for (let d = dDesde - 4; d <= Math.hypot(w.dolmen.position.x, w.dolmen.position.z); d += PASO) {
+  // Hasta la PUERTA de la atalaya, no hasta el centro del islote.
+  //
+  // El barrido iba hasta el dolmen, que estaba en la cima. Ahora ahí está la
+  // torre, y sus últimos metros son la rampa helicoidal: el barrido se metía
+  // dentro y daba «cortado en d=298,8, sube 4,52 m sobre obra», que no es un
+  // tramo infranqueable sino la escalera de la torre vista de perfil. Lo que
+  // esta prueba mide es el CAMINO hasta el pie de la atalaya; que la torre se
+  // suba lo prueba `atalaya-check` andando de verdad por ella.
+  const hastaLaPuerta = Math.hypot(w.atalaya.position.x, w.atalaya.position.z) - 6.4;
+  for (let d = dDesde - 4; d <= hastaLaPuerta; d += PASO) {
     const x = c * d;
     const z = s * d;
     const suelo = f.walkHeight(x, z, y + 1.7);
@@ -334,7 +343,7 @@ comprobar(
 );
 comprobar(
   datos.bloqueo === null,
-  'y se llega andando desde la isla grande hasta el dolmen sin un solo tramo infranqueable',
+  'y se llega andando desde la isla grande hasta la puerta de la atalaya sin un solo tramo infranqueable',
   datos.bloqueo
     ? `cortado en d=${datos.bloqueo.d}: sube ${datos.bloqueo.subida} m ${datos.bloqueo.obra ? 'sobre obra' : `en tierra (tangente ${datos.bloqueo.tan})`}`
     : ''

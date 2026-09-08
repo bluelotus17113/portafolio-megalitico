@@ -709,6 +709,9 @@ export class CameraRig {
 
     const pos = this.camera.position;
     const sueloActual = this._suelo(pos.x, pos.z, pos.y);
+    // Dónde se estaba antes de moverse. Lo usa la guarda del agua de más
+    // abajo para devolver al visitante a tierra firme.
+    const antesDeAndar = { x: pos.x, z: pos.z };
 
     // Los dos ejes se prueban por separado: así, al chocar de refilón contra
     // una cuesta, se resbala a lo largo de ella en vez de quedarse clavado.
@@ -743,13 +746,30 @@ export class CameraRig {
       suelo = this._suelo(pos.x, pos.z, pos.y);
     }
 
-    // No salirse de la isla.
-    const limite = WORLD.radius * 1.02;
-    const d = Math.hypot(pos.x, pos.z);
-    if (d > limite) {
-      pos.x *= limite / d;
-      pos.z *= limite / d;
+    // No salirse a nado. El límite es el AGUA, no un radio.
+    //
+    // Esto era un disco de `WORLD.radius * 1.02`, o sea 171,4 m, y se escribió
+    // cuando la isla grande era el mundo entero. Desde que hay calzada al
+    // islote era una pared invisible justo en la orilla: medido, el caminante
+    // se quedaba clavado en d=171,4 con la velocidad a tope —3,4 m/s— y cero
+    // avance por fotograma. Y lo peor era lo que NO fallaba: el terreno es
+    // continuo hasta el islote, la calzada está declarada como obra en el
+    // campo de alturas, no hay ni un colisionador en el trayecto y la regla de
+    // pisada decía «se pasa» en cada uno de los pasos. Todo correcto, y aun
+    // así no se llegaba, porque el recorte iba después de todo eso.
+    //
+    // El criterio nuevo dice lo mismo que quería decir el viejo —«no te vayas
+    // al mar»— pero de la forma que no caduca: se pisa donde hay suelo seco.
+    // Eso incluye la isla, la calzada y el islote, y excluye el agua esté
+    // donde esté. Revertir al punto anterior en vez de recortar hacia el
+    // centro es lo que evita el otro defecto de la versión vieja: cruzando el
+    // borde en diagonal, el recorte radial teletransportaba de lado.
+    if (this._suelo(pos.x, pos.z, pos.y) < WORLD.seaLevel + 0.05) {
+      pos.x = antesDeAndar.x;
+      pos.z = antesDeAndar.z;
       suelo = this._suelo(pos.x, pos.z, pos.y);
+      w.velocity.x = 0;
+      w.velocity.z = 0;
     }
 
     // El bamboleo del fotograma anterior se deshace ANTES de mirar el suelo.

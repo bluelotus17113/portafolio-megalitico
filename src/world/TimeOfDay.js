@@ -56,6 +56,8 @@ export const PHASES = [
     stars: 0.12,
     // El alba es liminal por el otro lado: se están retirando.
     sidhe: 0.55,
+    /** Cuánta noche hay. Lo leen las velas de la atalaya del islote. */
+    noche: 0.35,
     bloom: 0.52,
     exposure: 1.02,
   },
@@ -91,6 +93,8 @@ export const PHASES = [
     stars: 0,
     // El mediodía es de los humanos. Queda alguno rezagado a la sombra.
     sidhe: 0.10,
+    /** Cuánta noche hay. Lo leen las velas de la atalaya del islote. */
+    noche: 0,
     bloom: 0.40,
     exposure: 1.0,
   },
@@ -119,6 +123,8 @@ export const PHASES = [
     stars: 0.22,
     // Su hora. Ni de día ni de noche, que es de lo que va todo esto.
     sidhe: 0.85,
+    /** Cuánta noche hay. Lo leen las velas de la atalaya del islote. */
+    noche: 0.7,
     bloom: 0.62,
     exposure: 1.05,
   },
@@ -148,6 +154,8 @@ export const PHASES = [
     grassShadow: 0x081a33,
     stars: 1.0,
     sidhe: 1.0,
+    /** Cuánta noche hay. Lo leen las velas de la atalaya del islote. */
+    noche: 1,
     // El bloom baja al oscurecerse la isla: florece sobre lo que ya hay, y con
     // la escena tres veces más oscura la misma fuerza pesa el triple.
     bloom: 0.72,
@@ -159,7 +167,7 @@ const COLOR_KEYS = [
   'sunColor', 'skyTop', 'skyHorizon', 'fog', 'cloudLight', 'cloudShade',
   'oceanDeep', 'oceanShallow', 'oceanClear', 'caustic', 'foam', 'grassShadow',
 ];
-const NUMBER_KEYS = ['fogDensity', 'cloudCut', 'stars', 'bloom', 'exposure', 'sidhe'];
+const NUMBER_KEYS = ['fogDensity', 'cloudCut', 'stars', 'bloom', 'exposure', 'sidhe', 'noche'];
 
 /**
  * Qué momento del día es AHORA donde está quien mira.

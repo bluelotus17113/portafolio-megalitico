@@ -21,6 +21,13 @@ import { setToonSun, setToonCloudMap, tickToonClouds } from '../vfx/toon.js';
 import { TimeOfDay, PHASES } from './TimeOfDay.js';
 import { createCalzada, createEscalinata, calzadaKeepOut } from './Calzada.js';
 import { createDolmen, DOLMEN_RADIO } from '../models/Dolmen.js';
+import {
+  ATALAYA_ALTO,
+  ATALAYA_RADIO_LIBRE,
+  atalayaWalkways,
+  createAtalaya,
+  prenderVelas,
+} from '../models/Atalaya.js';
 import { ESTACIONES } from './Estaciones.js';
 import { createDais } from '../models/Dais.js';
 import { createTrilithon } from '../models/Megaliths.js';
@@ -215,7 +222,18 @@ export class World {
       }
       return ISLOTE.distancia - ISLOTE.radius;
     })();
-    const cimaD = ISLOTE.distancia - 5;
+    // La escalinata se para EN LA PUERTA de la atalaya, no en el centro.
+    //
+    // Iba a `distancia - 5`, o sea casi al eje del islote, y eso era correcto
+    // cuando en la cima había un dolmen: se subía hasta él. Con la torre
+    // ocupando el centro, esos últimos metros de pasarela quedan DENTRO de la
+    // torre, y `walkHeight` se queda con el tramo más cercano: medido, a mitad
+    // de la rampa helicoidal la escalinata ganaba por 0,54 m contra 0,62 y el
+    // suelo caía de 48,6 a 43,4 — once metros de vacío. El caminante subía
+    // hasta los dos tercios y se despeñaba, y lo desconcertante era que
+    // `enFabrica` seguía diciendo «aquí hay obra»: la había, sólo que era la
+    // obra equivocada.
+    const cimaD = ISLOTE.distancia - ATALAYA_RADIO_LIBRE - 1.5;
     const cimaY = this.field.baseHeight(c * cimaD, s * cimaD);
     this.escalinataPlan = { pieD, cimaD, pieY: 4.4, cimaY };
     this.field.addCut(c * pieD, s * pieD, c * cimaD, s * cimaD, {
@@ -236,7 +254,16 @@ export class World {
     // de huella del dolmen, así que la jamba de atrás quedaba enterrada 1,79 de
     // sus 1,94 y del monumento solo asomaba la cubierta tirada en la hierba.
     // Un megalito se planta a nivel — es lo primero que hace quien lo levanta.
-    this.field.addPad(this.isloteCentro.x, this.isloteCentro.y, 9, 13, cimaY);
+    // La explanada se ensancha para que quepan la torre Y el dolmen a su lado:
+    // con radio 9 el dolmen corrido caía fuera y se plantaba en la ladera.
+    this.field.addPad(this.isloteCentro.x, this.isloteCentro.y, 15, 13, cimaY);
+
+    // La rampa helicoidal de la atalaya, declarada como obra ANTES de teselar.
+    // Es lo que hace que la torre se pueda subir: el modo a pie no trepa por
+    // una malla, anda sobre lo que el campo de alturas declara transitable.
+    for (const w of atalayaWalkways({ x: this.isloteCentro.x, z: this.isloteCentro.y }, cimaY)) {
+      this.field.addWalkway(w.ax, w.az, w.bx, w.bz, w);
+    }
 
     this._traceRoutes();
   }
@@ -836,12 +863,34 @@ export class World {
     });
     this.scene.add(this.escalinata);
 
-    // El dolmen, en la cima. Mira hacia la calzada: la boca de una cámara da
-    // a donde llega la gente, no al mar abierto.
+    // La atalaya, en la cima.
+    //
+    // Ocupa el sitio que tenía el dolmen, y el cambio es de fondo: un dolmen
+    // se mira y una atalaya se sube. El islote tenía calzada, escalinata y
+    // explanada, y al final de todo eso lo que había era una tumba que se veía
+    // igual de bien desde la orilla. Ahora cruzar el mar lleva a un sitio
+    // donde se hace algo — y desde arriba se ve la isla grande entera, que es
+    // la única vista del mundo que no se puede tener desde el promontorio.
     const centro = this.isloteCentro;
     const cima = this.field.height(centro.x, centro.y);
+    this.atalaya = createAtalaya({
+      // La puerta mira a la escalinata: se entra por donde se llega.
+      rumbo: ISLOTE.rumbo + Math.PI,
+      base: cima,
+      seed: SEED % 4211,
+    });
+    this.atalaya.position.set(centro.x, 0, centro.y);
+    this.scene.add(this.atalaya);
+
+    // Y el dolmen no se tira: se corre a un lado de la explanada. Sigue siendo
+    // la pieza que explica por qué este islote está fuera —una tumba se pone
+    // al otro lado de algo que haya que cruzar— y con la torre al lado se lee
+    // mejor que solo, porque hay con qué compararlo de tamaño.
+    const ladoDolmen = ISLOTE.rumbo + Math.PI * 0.5;
+    const dx = centro.x + Math.cos(ladoDolmen) * (ATALAYA_RADIO_LIBRE + 3.4);
+    const dz = centro.y + Math.sin(ladoDolmen) * (ATALAYA_RADIO_LIBRE + 3.4);
     this.dolmen = createDolmen({ rumbo: ISLOTE.rumbo + Math.PI, escala: 1.15, seed: SEED % 733 });
-    this.dolmen.position.set(centro.x, cima, centro.y);
+    this.dolmen.position.set(dx, this.field.height(dx, dz), dz);
     this.scene.add(this.dolmen);
 
     // Cuatro bolos sueltos por la ladera. El islote queda fuera del radio de
@@ -981,6 +1030,13 @@ export class World {
     // Cuántos hay despiertos sale de multiplicar la hora por la estación, y las
     // dos ya vienen interpoladas por `TimeOfDay`: al cambiar de momento o de
     // estación, salen o se meten en el cerro solos, sin un caso especial aquí.
+    // Las velas de la atalaya siguen a la hora. `velo` no: es la fuerza del
+    // otro mundo, y una vela se enciende porque anochece, no porque sea
+    // Samhain.
+    if (this.atalaya && this.time) {
+      prenderVelas(this.atalaya, this.time.value.noche ?? 0);
+    }
+
     if (this.espiritus) {
       const sidhe = this.time?.value.sidhe ?? 0.35;
       const velo = this.time?.estacionValor.velo ?? 1;
