@@ -1,23 +1,19 @@
 {
   "identidad": {
-    "name": "TU NOMBRE",
-    "role": "Perfil profesional",
-    "oghamMotto": "ainm"
+    "name": "ISAAC LEVI NAVAS OYOLA",
+    "role": "Desarrollador De Software",
+    "oghamMotto": "vakna"
   },
   "perfil": {
     "title": "Sobre mí",
     "subtitle": "La Estela de Inscripciones",
     "body": [
-      "Marcador de posición. Aquí va el texto de presentación: quién eres, a qué te dedicas y qué tipo de trabajo buscas. Dos o tres párrafos cortos funcionan mejor que uno largo.",
-      "Segundo párrafo de ejemplo. Sirve para el enfoque, la forma de trabajar o aquello que te distingue. Sustituye este texto por el tuyo."
+      "Desarrollo soluciones a medida. Alguien llega con un problema —una web que tiene que existir, una app que hay que publicar, un proceso que se hace a mano y no debería, un juego que hay que sacar adelante— y lo entrego funcionando: análisis, diseño, código, despliegue y lo que haga falta por el camino. Entrego el problema resuelto.",
+      "Que sea a medida significa que la forma de la solución no está decidida de antemano, y por eso me interesa abarcar. Soy polímata: experiencias y aplicaciones web con JavaScript moderno y WebGL, una app Android publicada con React y Capacitor, juegos 2D y 3D en Unity y en Godot, automatización y pipelines generativos en Python y Blender, y un espacio de IA autoalojado para orquestar el resto. Elijo la herramienta después de entender el encargo, no antes."
     ],
     "facts": [
       {
-        "label": "Ubicación",
-        "value": "—"
-      },
-      {
-        "label": "Disponibilidad",
+        "label": "Colombia",
         "value": "—"
       },
       {
@@ -32,148 +28,137 @@
   },
   "proyectos": [
     {
-      "id": "p1",
-      "title": "Proyecto uno",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto en una o dos frases. Qué era, qué problema resolvía y cuál fue tu papel.",
+      "id": "portafolio",
+      "title": "Portafolio megalítico",
+      "tag": "Web · 3D",
+      "year": "2026",
+      "estado": "progreso",
+      "summary": "Este mismo sitio. Un portafolio donde la información no se lee en una página, se recorre a pie por un paisaje — con una versión ligera, sin 3D y de carga inmediata, que sale de los mismos datos para quien no puede con WebGL. El relieve, el mar, la vegetación, las estaciones y el sonido no son ficheros descargados: se calculan enteros desde una sola semilla.",
       "stack": [
-        "Herramienta",
-        "Herramienta",
-        "Herramienta"
+        "Three.js",
+        "WebGL",
+        "Vite",
+        "Web Audio",
+        "JavaScript"
       ],
-      "url": null,
+      "url": "https://github.com/bluelotus17113/portafolio-megalitico",
       "poster": {
         "seed": 101,
         "hue": 186
       }
     },
     {
-      "id": "p2",
-      "title": "Proyecto dos",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "id": "vampiros-colombia",
+      "title": "Vampiros de Colombia",
+      "tag": "Videojuego",
+      "year": "2026",
+      "estado": "terminado",
+      "summary": "Survivor de oleadas levantado sobre mitología colombiana en lugar del bestiario de siempre: el Mohán, la Madremonte, la Patasola, el Bracamonte y el Sombrerón como enemigos, y el Diablo de Riosucio de jefe. Progresión, sistema de logros y pixel art propio. Empaquetado y jugable en Windows, Linux y Android.",
       "stack": [
-        "Herramienta",
-        "Herramienta"
+        "Godot 4",
+        "GDScript",
+        "Pixel art"
       ],
       "url": null,
       "poster": {
-        "seed": 202,
-        "hue": 42
+        "seed": 327,
+        "hue": 348
       }
     },
     {
-      "id": "p3",
-      "title": "Proyecto tres",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "id": "toki-pona",
+      "title": "App de toki pona",
+      "tag": "App móvil",
+      "year": "2026",
+      "estado": "terminado",
+      "summary": "Aplicación Android para aprender toki pona —lecciones, diccionario y práctica— pensada desde el primer día para uso familiar: sin publicidad, sin rastreo y sin identificador de anuncios, cumpliendo COPPA y GDPR-K. Terminada y funcionando en el dispositivo; queda sólo el periodo de pruebas con testers que exige Google Play.",
       "stack": [
-        "Herramienta",
-        "Herramienta",
-        "Herramienta"
+        "React",
+        "Vite",
+        "Capacitor",
+        "Android"
       ],
       "url": null,
       "poster": {
-        "seed": 303,
-        "hue": 268
+        "seed": 660,
+        "hue": 158
       }
     },
     {
-      "id": "p4",
-      "title": "Proyecto cuatro",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "id": "renombrador-pdf",
+      "title": "Renombrador de PDFs",
+      "tag": "Herramienta",
+      "year": "2026",
+      "estado": "terminado",
+      "summary": "Encargo concreto: alguien renombraba a mano lotes de PDFs cruzándolos con un informe, todos los meses. La herramienta lee cada fichero, lo empareja con la fila que le corresponde y lo renombra sola, con OCR para los que llegan escaneados. Con interfaz de escritorio, para que la use quien no abre una terminal.",
       "stack": [
-        "Herramienta"
+        "Python",
+        "Tkinter",
+        "PyMuPDF",
+        "Tesseract OCR"
       ],
       "url": null,
       "poster": {
-        "seed": 404,
+        "seed": 882,
+        "hue": 112
+      }
+    },
+    {
+      "id": "trypophobia",
+      "title": "Trypophobia",
+      "tag": "Videojuego · En equipo",
+      "year": "2026",
+      "estado": "progreso",
+      "summary": "Juego de terror y extracción para ocho jugadores en línea, en 3D con Godot. Lo desarrollo con Tote Role, el equipo indie con el que trabajo desde 2020: es el proyecto donde el trabajo no es sólo mío, sino coordinado con otros desarrolladores y artistas.",
+      "stack": [
+        "Godot 4",
+        "GDScript",
+        "Multijugador",
+        "3D"
+      ],
+      "url": null,
+      "poster": {
+        "seed": 445,
         "hue": 12
       }
     },
     {
-      "id": "p5",
-      "title": "Proyecto cinco",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "id": "mystic-emporium",
+      "title": "Mystic Emporium",
+      "tag": "Videojuego",
+      "year": "2025 — 2026",
+      "estado": "progreso",
+      "summary": "Juego cozy de gestión y automatización de una tienda mágica: pedidos, artesanía, ayudantes con especialidad propia, árbol de mejoras y un minijuego de defensa. El problema no era el código sino el volumen de contenido para una sola persona, y se resolvió generando por código los casi 500 sprites del juego — un pipeline que permite rehacer el arte entero cambiando un parámetro.",
       "stack": [
-        "Herramienta",
-        "Herramienta"
+        "Godot 4",
+        "GDScript",
+        "Python",
+        "PIL"
       ],
       "url": null,
       "poster": {
-        "seed": 505,
-        "hue": 152
+        "seed": 214,
+        "hue": 288
       }
     },
     {
-      "id": "p6",
-      "title": "Proyecto seis",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
+      "id": "isla-nimbo",
+      "title": "Isla Nimbo",
+      "tag": "Videojuego",
+      "year": "2026",
+      "estado": "progreso",
+      "summary": "Aldea de vecinos en islas flotantes: gestión de personajes al estilo Tomodachi cruzada con cultivo y vida diaria. Todo el diseño gira sobre una regla dura —el juego nunca castiga por no entrar— y tanto el arte 3D chibi como la música, que cambia con el momento del día, se generan por código.",
       "stack": [
-        "Herramienta",
-        "Herramienta",
-        "Herramienta"
+        "Unity 6",
+        "C#",
+        "URP",
+        "Blender",
+        "numpy"
       ],
       "url": null,
       "poster": {
-        "seed": 606,
-        "hue": 320
-      }
-    },
-    {
-      "id": "p7",
-      "title": "Proyecto siete",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
-      "stack": [
-        "Herramienta"
-      ],
-      "url": null,
-      "poster": {
-        "seed": 707,
-        "hue": 210
-      }
-    },
-    {
-      "id": "p8",
-      "title": "Proyecto ocho",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
-      "stack": [
-        "Herramienta",
-        "Herramienta"
-      ],
-      "url": null,
-      "poster": {
-        "seed": 808,
-        "hue": 88
-      }
-    },
-    {
-      "id": "p9",
-      "title": "Proyecto nueve",
-      "tag": "Categoría",
-      "year": "20XX",
-      "summary": "Descripción breve del proyecto. Sustituye este texto.",
-      "stack": [
-        "Herramienta",
-        "Herramienta"
-      ],
-      "url": null,
-      "poster": {
-        "seed": 909,
-        "hue": 340
+        "seed": 438,
+        "hue": 42
       }
     }
   ],
@@ -279,6 +264,12 @@
       "role": "Puesto actual",
       "org": "Organización",
       "detail": "Una o dos frases. Sustituye este texto."
+    },
+    {
+      "period": "sep. 2020 — actualidad",
+      "role": "Desarrollador de videojuegos",
+      "org": "Tote Role — equipo indie",
+      "detail": "Equipo indie de desarrollo de videojuegos. Trabajo con otros desarrolladores y artistas en los proyectos del estudio, actualmente en Trypophobia, un juego de terror multijugador para ocho jugadores hecho en Godot."
     }
   ],
   "contacto": {
@@ -288,7 +279,7 @@
     "links": [
       {
         "label": "Correo",
-        "value": "tu@correo",
+        "value": "vaknadesu@gmail.com",
         "href": null,
         "rune": "ansuz"
       },
