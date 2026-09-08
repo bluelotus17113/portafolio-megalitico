@@ -51,10 +51,28 @@ const ANCHO_MAXIMO = 5.0;
 /**
  * Siembra los calzos de toda la isla.
  *
+ * Dos clientes, y el segundo llegó tarde:
+ *
+ *  1. **Las piedras de pie**, acuñadas en corro alrededor de su huella.
+ *  2. **El pie de los muretes de la escalinata**, en línea a lo largo del
+ *     paramento. Ahí la obra se encontraba con la hierba en un corte limpio de
+ *     cuarenta metros —medido: el canto exterior va bien hincado, mediana 0,5 m
+ *     bajo tierra, así que no era un fallo de cimentación sino de encuentro— y
+ *     un muro que sale de la tierra sin nada al pie se lee como un decorado
+ *     apoyado en el césped. Es exactamente el mismo argumento que ya justifica
+ *     los calzos de un menhir, aplicado donde faltaba.
+ *
+ * La línea no se mide sobre la malla: la escalinata la deja escrita en
+ * `userData.pieDeMuro`, porque ella conoce su trazado y aquí sólo habría una
+ * sopa de vértices de la que adivinar cuál es el canto de abajo.
+ *
  * @param {THREE.Object3D} escena  Con el mundo ya construido.
+ * @param {import('./Terrain.js').TerrainField} [field]  Hace falta para el pie
+ *   de los muretes: la cota a la que va el bolo es la del TERRENO, no la del
+ *   muro, que está hincado medio metro por debajo.
  * @returns {THREE.Group|null} El grupo añadido, o null si no había qué recalzar.
  */
-export function sembrarCalzos(escena) {
+export function sembrarCalzos(escena, field = null) {
   // Las cajas se miden en mundo, así que las matrices tienen que estar al día.
   // Es el mismo cuidado que necesita `construirColisionadores`, y por el mismo
   // motivo: antes del primer fotograma nadie ha recalculado nada.
@@ -108,6 +126,35 @@ export function sembrarCalzos(escena) {
       });
     }
   });
+
+  // ── Pie de los muretes ──────────────────────────────────────────────────
+  if (field) {
+    escena.traverse((nodo) => {
+      const linea = nodo.userData?.pieDeMuro;
+      if (!Array.isArray(linea) || !linea.length) return;
+      for (const q of linea) {
+        // Uno de cada cuatro se salta. Una fila completa vuelve a ser un
+        // bordillo; con huecos irregulares se lee como cascote acumulado.
+        if (random() < 0.25) continue;
+        const escala = 0.5 + random() * 0.85;
+        // Arrimado al paramento y un poco hacia fuera, nunca metido en él.
+        const fuera = 0.12 + random() * 0.5;
+        const x = q.x + q.fx * fuera + (random() - 0.5) * 0.35;
+        const z = q.z + q.fz * fuera + (random() - 0.5) * 0.35;
+        lotes[Math.floor(random() * formas.length)].push({
+          posicion: new THREE.Vector3(
+            x,
+            // Medio enterrado en el TERRENO, igual que los otros calzos: un
+            // bolo entero sobre la hierba es un canto que alguien dejó ahí.
+            field.height(x, z) + 0.34 * escala * (0.15 + random() * 0.35),
+            z
+          ),
+          giro: new THREE.Euler(random() * Math.PI, random() * Math.PI, random() * Math.PI),
+          escala: new THREE.Vector3(escala, escala * (0.55 + random() * 0.35), escala),
+        });
+      }
+    });
+  }
 
   const total = lotes.reduce((s, l) => s + l.length, 0);
   if (!total) return null;

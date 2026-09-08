@@ -792,6 +792,11 @@ export function createStairway(field) {
     grupo.add(m);
   }
 
+  // Dónde la obra se encuentra con la tierra. No dibuja nada: lo recoge
+  // `sembrarCalzos` para acuñar el pie, que es lo que le faltaba a estos muros.
+  // Ver la nota de `lineaDePie`.
+  grupo.userData.pieDeMuro = lineaDePie(plan);
+
   // ---- Jambas: una pareja al pie, otra en el rellano, otra en lo alto -----
   // No es un corro alrededor de nada: son tres puertas sobre el eje de marcha,
   // que es lo que dice «por aquí se sube» desde lejos.
@@ -857,10 +862,44 @@ export function createStairway(field) {
       m.receiveShadow = true;
       grupo.add(m);
     }
+    grupo.userData.pieDeMuro.push(...lineaDePie(mini));
   }
 
   grupo.userData.plan = plan;
   return grupo;
+}
+
+/**
+ * La línea por donde el pie del murete toca la tierra, a los dos lados.
+ *
+ * No devuelve geometría: devuelve PUNTOS, que es lo que necesita el sembrador
+ * de calzos para acuñar el encuentro. Se hace aquí y no midiendo la malla
+ * porque aquí está el trazado —el eje, la tangente y el ancho— y ahí sólo
+ * habría una sopa de vértices de la que habría que adivinar cuál es el canto
+ * de abajo y hacia dónde mira el muro.
+ *
+ * `fx`/`fz` es la horizontal hacia FUERA, para arrimar el bolo al paramento en
+ * vez de dejarlo en mitad de la hierba.
+ */
+function lineaDePie(plan) {
+  const { ancho, muro } = STAIRWAY;
+  const r = ancho * 0.5 + muro;
+  // Un punto por metro. Es la separación a la que el sembrador puede dejar
+  // huecos y aun así leerse como una línea continua de recalce; más junto
+  // saldría un bordillo, que es justo lo que un recalce no es.
+  const paso = 1.0;
+  const n = Math.max(2, Math.round(plan.largo / paso));
+  const puntos = [];
+  for (const lado of [-1, 1]) {
+    for (let i = 0; i <= n; i++) {
+      const l = (i / n) * plan.largo;
+      const p = enL(plan, l);
+      const fx = -p.tz * lado;
+      const fz = p.tx * lado;
+      puntos.push({ x: p.x + fx * r, z: p.z + fz * r, fx, fz });
+    }
+  }
+  return puntos;
 }
 
 /** Solo para pruebas: olvida el trazado memoizado. */

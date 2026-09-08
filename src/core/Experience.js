@@ -272,7 +272,7 @@ export class Experience {
     // Recalce del pie de las piedras de pie. Va después del mundo entero
     // —necesita las piezas ya colocadas para medir dónde apoya cada una— y
     // antes del catálogo, para que el editor sepa que existen.
-    sembrarCalzos(this.scene);
+    sembrarCalzos(this.scene, this.world.field);
 
     // Catálogo de piezas y anulaciones guardadas.
     //
