@@ -150,61 +150,90 @@ comprobar(
 );
 comprobar(viaje.sobreElMar === 0, 'Sin pisar el agua en ningún momento', `${viaje.sobreElMar} pasos`);
 
-// ── 3. Se sube la torre ────────────────────────────────────────────────────
-const subida = await page.evaluate(() => {
+// ── 3. Se entra por la puerta y se sube ────────────────────────────────────
+//
+// Empezando FUERA, no dentro. La primera versión de esta prueba plantaba al
+// caminante ya en el arranque de la rampa, y con eso pasaba en verde mientras
+// la puerta estaba a 312° y la rampa arrancaba a 170°: entrar por la puerta
+// dejaba en el patio sin nada que subir, y la escalera nacía a media torre
+// contra el muro. Una prueba que empieza dentro no prueba que se pueda entrar.
+const entrada = await page.evaluate(() => {
   const ex = window.__portfolio;
   const rig = ex.rig;
   const campo = ex.world.field;
   const c = ex.world.isloteCentro;
   const base = campo.height(c.x, c.y);
-  // El eje de la rampa, con las mismas constantes que declara `Atalaya.js`.
-  const R = 6.4 - 2.1 * 0.5;
-  const VUELTAS = 0.92;
-  const ruta = [];
-  for (let i = 0; i <= 46; i++) {
-    const a = Math.PI + (i / 46) * VUELTAS * Math.PI * 2;
+  const rumbo = 2.3 + Math.PI;
+  const R = 7.8 - 2.1 - 1.05;
+
+  const andar = (desde, ruta, pasos, tol) => {
+    rig.enabled = true;
+    rig.plantar(desde[0], desde[1], 0);
+    rig.free.pointerLocked = true;
+    rig.free.keys.clear();
+    rig.free.keys.add('KeyW');
+    let idx = 0;
+    let cotaMax = -Infinity;
+    let caidas = 0;
+    let previa = base;
+    for (let i = 0; i < pasos; i++) {
+      const p = ex.camera.position;
+      let meta = ruta[idx];
+      while (meta && Math.hypot(p.x - meta[0], p.z - meta[1]) < tol && idx < ruta.length - 1) {
+        meta = ruta[++idx];
+      }
+      if (!meta) break;
+      rig.free.yaw = Math.atan2(-(meta[0] - p.x), -(meta[1] - p.z));
+      rig.update(0.05);
+      const suelo = p.y - rig.walk.ojos;
+      if (suelo > cotaMax) cotaMax = suelo;
+      if (previa - suelo > 2) caidas++;
+      previa = suelo;
+    }
+    rig.free.keys.clear();
+    const f = ex.camera.position;
+    return {
+      radio: +Math.hypot(f.x - c.x, f.z - c.y).toFixed(1),
+      cota: +(f.y - rig.walk.ojos).toFixed(1),
+      cotaMax: +cotaMax.toFixed(1),
+      caidas,
+    };
+  };
+
+  // A) Desde fuera, cruzando el umbral y subiendo hasta el adarve.
+  const ruta = [[c.x + Math.cos(rumbo) * R, c.y + Math.sin(rumbo) * R]];
+  for (let i = 1; i <= 46; i++) {
+    const a = rumbo + (i / 46) * 0.92 * Math.PI * 2;
     ruta.push([c.x + Math.cos(a) * R, c.y + Math.sin(a) * R]);
   }
-  rig.enabled = true;
-  rig.plantar(ruta[0][0], ruta[0][1], 0);
-  rig.free.pointerLocked = true;
-  rig.free.keys.clear();
-  rig.free.keys.add('KeyW');
+  ruta.push([c.x, c.y]); // y un último paso al centro del adarve
+  const porLaPuerta = andar([c.x + Math.cos(rumbo) * 12, c.y + Math.sin(rumbo) * 12], ruta, 2800, 0.9);
 
-  let indice = 0;
-  let cotaMax = -Infinity;
-  let caidas = 0;
-  let previa = base;
-  for (let i = 0; i < 2500; i++) {
-    const p = ex.camera.position;
-    let meta = ruta[indice];
-    while (meta && Math.hypot(p.x - meta[0], p.z - meta[1]) < 0.9 && indice < ruta.length - 1) {
-      meta = ruta[++indice];
-    }
-    if (!meta) break;
-    rig.free.yaw = Math.atan2(-(meta[0] - p.x), -(meta[1] - p.z));
-    rig.update(0.05);
-    const suelo = p.y - rig.walk.ojos;
-    if (suelo > cotaMax) cotaMax = suelo;
-    // Un desplome: perder más de dos metros de golpe es caerse de la rampa.
-    if (previa - suelo > 2) caidas++;
-    previa = suelo;
-  }
-  rig.free.keys.clear();
-  return {
-    base: +base.toFixed(1),
-    cima: +(base + 11.5).toFixed(1),
-    cotaMax: +cotaMax.toFixed(1),
-    subio: +(cotaMax - base).toFixed(1),
-    caidas,
-  };
+  // B) Y el muro por el lado contrario: no se atraviesa.
+  const op = rumbo + Math.PI;
+  const porLaPared = andar([c.x + Math.cos(op) * 12, c.y + Math.sin(op) * 12], [[c.x, c.y]], 900, 0.5);
+
+  return { base: +base.toFixed(1), cima: +(base + 11.5).toFixed(1), porLaPuerta, porLaPared };
 });
 comprobar(
-  subida.subio > 11,
-  'La rampa se sube entera hasta el adarve',
-  `${subida.subio} m de ${(subida.cima - subida.base).toFixed(1)}`
+  entrada.porLaPuerta.cotaMax - entrada.base > 10.5,
+  'Se entra por la puerta y se sube hasta el adarve',
+  `${(entrada.porLaPuerta.cotaMax - entrada.base).toFixed(1)} m de 11,5`
 );
-comprobar(subida.caidas === 0, 'Sin despeñarse por el camino', `${subida.caidas} desplomes`);
+comprobar(entrada.porLaPuerta.caidas === 0, 'Sin despeñarse por el camino', `${entrada.porLaPuerta.caidas} desplomes`);
+// Y lo contrario, que es lo que convierte la puerta en una puerta: por el muro
+// no se pasa. Sin cuerpo en la fábrica, la torre es un decorado y entrar por
+// donde toca no significa nada.
+comprobar(
+  entrada.porLaPared.radio > 5,
+  'Y el muro no se atraviesa: por el lado ciego no se entra',
+  `se queda a ${entrada.porLaPared.radio} m del eje`
+);
+comprobar(
+  entrada.porLaPared.cotaMax - entrada.base < 1.5,
+  'Ni se trepa por fuera',
+  `sube ${(entrada.porLaPared.cotaMax - entrada.base).toFixed(1)} m`
+);
 
 // ── 4. Las velas obedecen a la hora ────────────────────────────────────────
 const velas = await page.evaluate(async () => {

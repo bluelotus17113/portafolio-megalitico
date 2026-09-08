@@ -261,7 +261,14 @@ export class World {
     // La rampa helicoidal de la atalaya, declarada como obra ANTES de teselar.
     // Es lo que hace que la torre se pueda subir: el modo a pie no trepa por
     // una malla, anda sobre lo que el campo de alturas declara transitable.
-    for (const w of atalayaWalkways({ x: this.isloteCentro.x, z: this.isloteCentro.y }, cimaY)) {
+    // El MISMO rumbo que se le pasa a `createAtalaya`, para que la rampa
+    // arranque justo en el hueco de la puerta.
+    const rumboAtalaya = ISLOTE.rumbo + Math.PI;
+    for (const w of atalayaWalkways(
+      { x: this.isloteCentro.x, z: this.isloteCentro.y },
+      cimaY,
+      rumboAtalaya
+    )) {
       this.field.addWalkway(w.ax, w.az, w.bx, w.bz, w);
     }
 
@@ -874,7 +881,8 @@ export class World {
     const centro = this.isloteCentro;
     const cima = this.field.height(centro.x, centro.y);
     this.atalaya = createAtalaya({
-      // La puerta mira a la escalinata: se entra por donde se llega.
+      // La puerta mira a la escalinata: se entra por donde se llega. Es el
+      // mismo ángulo con el que se declaró la rampa más arriba.
       rumbo: ISLOTE.rumbo + Math.PI,
       base: cima,
       seed: SEED % 4211,

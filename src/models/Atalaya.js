@@ -42,7 +42,7 @@ import { makeRandom } from '../utils/noise.js';
 import { PALETTE } from '../config.js';
 
 /** Radio exterior en la base. Se estrecha hacia arriba. */
-export const ATALAYA_RADIO = 6.4;
+export const ATALAYA_RADIO = 7.8;
 /** Alto del cuerpo, sin contar el parapeto. */
 export const ATALAYA_ALTO = 11.5;
 /** Grosor del muro doble. Es el hueco por el que sube la escalera. */
@@ -63,8 +63,21 @@ const ENTASIS = 0.82;
  * para una de torre, que es lo que es.
  */
 const VUELTAS = 0.92;
-/** Radio del eje de la rampa: el centro del grosor del muro. */
-const R_RAMPA = ATALAYA_RADIO - GRUESO * 0.5;
+/**
+ * Radio del eje de la rampa: ADOSADA al muro por dentro, no metida en él.
+ *
+ * La primera versión la puso en el centro del grosor, que es la traza de un
+ * broch de verdad. No funciona aquí y por una razón de bulto: entre los dos
+ * paramentos quedaban 46 cm libres, y el cuerpo del visitante mide 90 de
+ * diámetro. La escalera intramural auténtica es así de estrecha —lo eran— pero
+ * una que no se puede pisar no es una escalera.
+ *
+ * Adosada por dentro se gana lo que hacía falta: la rampa queda libre de la
+ * fábrica, y por tanto el muro PUEDE tener cuerpo sin cerrar el paso. Que es
+ * lo que convierte la puerta en una puerta, en vez de en un dibujo por el que
+ * da igual entrar o atravesar la pared.
+ */
+const R_RAMPA = ATALAYA_RADIO - GRUESO - 1.05;
 
 const _uno = new THREE.Vector3(1, 1, 1);
 
@@ -82,12 +95,16 @@ const radioEn = (t) => ATALAYA_RADIO * (1 - (1 - ENTASIS) * t);
  * @param {{x:number, z:number}} centro
  * @param {number} base  Cota del suelo bajo la torre.
  */
-export function atalayaWalkways(centro, base) {
+export function atalayaWalkways(centro, base, rumbo = 0) {
   const tramos = [];
   // Un tramo por cada 18° de giro. Más largo, la rampa se sale del muro en la
   // cuerda; más corto, son cien tramos que recorrer en cada consulta de altura.
   const pasos = Math.round(VUELTAS * 360 / 18);
-  const rumboPuerta = Math.PI;
+  // La rampa ARRANCA EN LA PUERTA, y por eso este ángulo se recibe en vez de
+  // escribirse aquí. Estaba fijo en π: la puerta se abría a 312° y la rampa
+  // empezaba a 170°, o sea que entrar por la puerta te dejaba en el patio sin
+  // nada que subir, y la escalera arrancaba a media torre contra el muro.
+  const rumboPuerta = rumbo;
   for (let i = 0; i < pasos; i++) {
     const a0 = rumboPuerta + (i / pasos) * VUELTAS * Math.PI * 2;
     const a1 = rumboPuerta + ((i + 1) / pasos) * VUELTAS * Math.PI * 2;
@@ -165,7 +182,14 @@ export function createAtalaya({ rumbo = 0, base = 0, seed = 4211 } = {}) {
   const HILADAS = 26;
   const altoHilada = ATALAYA_ALTO / HILADAS;
   // La puerta: un hueco de dos hiladas y pico en el arranque.
-  const puertaMedioAng = 0.28;
+  //
+  // El medio ángulo se calcula desde un ANCHO en metros y no se escribe fijo.
+  // Estaba en 0,28 rad, que con la torre a radio 6,4 daba una puerta de 3,6 m
+  // —ya generosa— y al ensanchar la torre a 7,8 pasó a 4,4: en el alzado no se
+  // leía como una puerta sino como un tramo de muro caído. Con el ancho fijado
+  // en metros, la torre puede crecer sin que la puerta crezca con ella.
+  const PUERTA_ANCHO = 2.6;
+  const puertaMedioAng = PUERTA_ANCHO / 2 / ATALAYA_RADIO;
   const puertaHasta = Math.round(2.6 / altoHilada);
 
   for (let h = 0; h < HILADAS; h++) {
@@ -202,11 +226,11 @@ export function createAtalaya({ rumbo = 0, base = 0, seed = 4211 } = {}) {
         flatBase: true,
       });
       const oscura = random() > 0.72;
-      // Doble paramento: una piedra por dentro y otra por fuera, con el hueco
-      // de la escalera entre las dos. Es la traza real de un broch y además es
-      // lo que deja pasar la luz de las velas por la tronera.
+      // Doble paramento: una piedra por dentro y otra por fuera. Es la traza
+      // real de un broch, y aquí además es lo que deja pasar la luz de las
+      // velas por la tronera.
       for (const signo of [1, -1]) {
-        const rr = r - GRUESO * 0.5 + signo * GRUESO * 0.32;
+        const rr = r - GRUESO * 0.5 + signo * GRUESO * 0.28;
         piezas.push({
           geo: bloque,
           oscura,
@@ -350,6 +374,44 @@ export function createAtalaya({ rumbo = 0, base = 0, seed = 4211 } = {}) {
     grupo.add(malla);
   }
   for (const { geo } of piezas) geo.dispose();
+
+  // ── El cuerpo del muro ────────────────────────────────────────────────
+  //
+  // Se declara aparte y a propósito grueso: veintiocho cajas alrededor del
+  // anillo, con su hueco en la puerta. Las otras dos vías no valen. Las mallas
+  // fundidas son dos cintas de quince metros, y su volumen envolvente incluye
+  // el patio entero — colisionar contra eso cerraría la torre. Y una caja por
+  // sillar serían mil doscientas setenta, contra las doscientas ochenta y tres
+  // que tiene hoy la isla completa, para describir un cilindro.
+  //
+  // Sin esto la torre es un decorado: se entra atravesando la pared en
+  // cualquier punto y la puerta no significa nada. `Colliders` excluye todo lo
+  // que se llame «muro» —un murete flanquea un paso, y ponerle cuerpo cierra el
+  // paso que flanquea— pero el muro de una torre no flanquea: encierra. Por eso
+  // se declara en vez de deducirse del nombre.
+  const cuerpos = [];
+  const SECTORES = 28;
+  for (let i = 0; i < SECTORES; i++) {
+    const a = (i / SECTORES) * Math.PI * 2;
+    const dAng = Math.abs(((a - rumbo + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    if (dAng < puertaMedioAng + 0.06) continue; // el hueco de la puerta
+    const rMed = ATALAYA_RADIO - GRUESO * 0.5;
+    const cx = Math.cos(a) * rMed;
+    const cz = Math.sin(a) * rMed;
+    // Cada caja cubre su arco con holgura, para que no queden rendijas entre
+    // sectores por las que colarse.
+    const arco = ((2 * Math.PI * rMed) / SECTORES) * 0.62;
+    const semi = Math.max(arco, GRUESO * 0.5);
+    cuerpos.push({
+      minX: cx - semi,
+      maxX: cx + semi,
+      minY: base - 1,
+      maxY: base + ATALAYA_ALTO + 1.2,
+      minZ: cz - semi,
+      maxZ: cz + semi,
+    });
+  }
+  grupo.userData.cuerpos = cuerpos;
 
   grupo.userData.velas = velas;
   grupo.userData.cima = cima;

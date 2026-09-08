@@ -153,6 +153,33 @@ export function construirColisionadores(escena) {
     anadir(etiqueta);
   });
 
+  // ── Cuerpos declarados ──────────────────────────────────────────────────
+  //
+  // Un objeto puede publicar sus propias cajas en `userData.cuerpos`, ya en
+  // coordenadas de mundo, y aquí se toman tal cual sin pasar por el filtro de
+  // compacidad. Es la salida para lo que este módulo no sabe deducir de una
+  // malla: la atalaya del islote es un cilindro hueco, y ni su volumen
+  // envolvente —que incluye el patio— ni una caja por sillar —mil doscientas
+  // setenta— la describen. Ella sabe que es un anillo con una puerta, así que
+  // lo dice.
+  //
+  // Va sin filtro a propósito: quien declara un cuerpo ya ha decidido su forma,
+  // y aplicarle el criterio de compacidad tiraría justo los casos por los que
+  // existe esta puerta.
+  escena.traverse((nodo) => {
+    const propios = nodo.userData?.cuerpos;
+    if (!Array.isArray(propios)) return;
+    for (const c of propios) {
+      cajas.push({
+        ...c,
+        cx: (c.minX + c.maxX) * 0.5,
+        cz: (c.minZ + c.maxZ) * 0.5,
+        r: Math.hypot(c.maxX - c.minX, c.maxZ - c.minZ) * 0.5,
+        etiqueta: nodo.name || 'cuerpo-declarado',
+      });
+    }
+  });
+
   return new Colisionadores(cajas);
 }
 
