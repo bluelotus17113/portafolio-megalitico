@@ -63,7 +63,7 @@ await page.waitForFunction(
 await page.click('.loader__enter');
 await new Promise((r) => setTimeout(r, 2000));
 
-const m = await page.evaluate(() => {
+const m = await page.evaluate(async () => {
   const ex = window.__portfolio;
   const campo = ex.world.field;
   const o = {};
@@ -216,6 +216,22 @@ const m = await page.evaluate(() => {
   });
   o.arbolesEnElClaro = dentro;
 
+  // ── El manantial se enciende de noche ──────────────────────────────────
+  const n = isla.userData?.nocturno;
+  if (n) {
+    const antes = { luz: n.luz.intensity, brillo: n.agua.material.emissiveIntensity };
+    // Se llama a la función de verdad, no se imita: `world.update` pide un
+    // contexto entero que aquí no hay, y montarlo a mano probaría el montaje.
+    const mod = await import('/src/models/IslaFlotante.js');
+    mod.prenderFuente(isla, 1);
+    o.noche = {
+      luzDeDia: +antes.luz.toFixed(2),
+      luzDeNoche: +n.luz.intensity.toFixed(2),
+      brilloDeDia: +antes.brillo.toFixed(2),
+      brilloDeNoche: +n.agua.material.emissiveIntensity.toFixed(2),
+    };
+  } else o.noche = null;
+
   return o;
 });
 
@@ -266,6 +282,21 @@ if (m.error) {
     'Y en el vuelo toda la huella tiene suelo, no sólo el eje',
     `${hu.sinSuelo} de ${hu.muestras} muestras al aire${hu.sinSuelo ? ` · hasta ${hu.peorHueco} m` : ''}`
   );
+
+  console.log('\n  y de noche');
+  comprobar(m.noche !== null, 'La isla declara qué se enciende');
+  if (m.noche) {
+    comprobar(
+      m.noche.luzDeDia === 0 && m.noche.luzDeNoche > 3,
+      'El manantial alumbra de noche y de día no existe',
+      `${m.noche.luzDeDia} → ${m.noche.luzDeNoche}`
+    );
+    comprobar(
+      m.noche.brilloDeNoche > m.noche.brilloDeDia + 0.3,
+      'Y el agua se enciende con él',
+      `${m.noche.brilloDeDia} → ${m.noche.brilloDeNoche}`
+    );
+  }
 
   const cu = m.cubierta;
   comprobar(
