@@ -209,6 +209,7 @@ export class Admin {
           valor: d.oghamMotto,
           ayuda: 'Se talla en la estela. Sólo letras latinas: el ogham no tiene cifras y lo que no sabe transcribir lo deja en blanco.',
         }),
+        this._campoFoto(d.foto),
       ]
     );
   }
@@ -221,6 +222,42 @@ export class Admin {
    * empiezan TODAS marcadas y se trabaja quitando. Adaptar un currículo a una
    * vacante es podar lo que no viene al caso, no volver a montarlo.
    */
+  /**
+   * El retrato de la hoja de vida.
+   *
+   * Sólo lo usa el currículo: ni la isla ni la versión ligera enseñan una foto,
+   * y no por olvido — el portafolio es la obra, y la cara sobra ahí. En un
+   * currículo, en cambio, es lo primero que se mira en media Europa y en
+   * Latinoamérica.
+   *
+   * Se guarda con nombre fijo en `public/`. Un retrato se sustituye, no se
+   * colecciona: con nombres distintos quedaría en la carpeta un rastro de fotos
+   * viejas que se publican con el sitio sin que nadie se acuerde de ellas.
+   */
+  _campoFoto(actual) {
+    // La marca de tiempo rompe la caché del navegador. Con el nombre fijo, sin
+    // ella, sustituir la foto no cambiaba nada en pantalla y parecía que la
+    // subida había fallado.
+    const src = actual ? `${actual}?v=${this._fotoVersion ?? 0}` : '';
+    return `
+      <label class="ad__campo ad__campo--ancho">
+        <span class="ad__etiqueta">Foto para la hoja de vida</span>
+        <div class="ad__foto" data-foto>
+          ${
+            actual
+              ? `<img src="${esc(src)}" alt="Retrato" />`
+              : '<span class="ad__foto-vacia">Arrastra un JPG aquí o pulsa para elegirlo</span>'
+          }
+          <input type="file" accept="image/jpeg,image/png,image/webp" hidden data-foto-fichero />
+        </div>
+        <span class="ad__pista">
+          Va sólo en el currículo, nunca en la isla ni en la versión ligera.
+          Cada hoja de vida puede llevarla o no.
+          ${actual ? '<button type="button" class="ad__quitar-foto" data-quitar-foto>Quitar la foto</button>' : ''}
+        </span>
+      </label>`;
+  }
+
   _perfiles() {
     const perfiles = this.datos.perfiles ?? [];
     const bloques = perfiles
@@ -280,6 +317,14 @@ export class Admin {
                 valor: p.enfoque ?? '',
                 ancho: 'corto',
               })}
+              <label class="ad__campo ad__campo--corto">
+                <span class="ad__etiqueta">Foto</span>
+                <label class="ad__marca">
+                  <input type="checkbox" data-perfil-foto="${i}" ${p.foto === false ? '' : 'checked'} />
+                  <span>Incluir el retrato</span>
+                </label>
+                <span class="ad__pista">Quítala para el mundo anglosajón: allí una foto en el currículo se desaconseja.</span>
+              </label>
               ${area({
                 ruta: `perfiles.${i}.resumen`,
                 tipo: 'parrafos',
@@ -496,6 +541,47 @@ export class Admin {
     // Las marcas de un perfil. Van por `change` y no por `input` porque una
     // casilla se marca de golpe: no hay estado intermedio que preservar, y sí
     // hay que repintar para que el contador «3/7» diga la verdad.
+    // ── El retrato ────────────────────────────────────────────────────────
+    this.caja.addEventListener('click', (e) => {
+      if (e.target.closest('[data-quitar-foto]')) {
+        e.preventDefault();
+        this._quitarFoto();
+        return;
+      }
+      const zona = e.target.closest('[data-foto]');
+      if (zona) zona.querySelector('[data-foto-fichero]').click();
+    });
+    this.caja.addEventListener('change', (e) => {
+      const f = e.target.closest('[data-foto-fichero]');
+      if (f) this._subirFoto(f.files?.[0]);
+    });
+    for (const evento of ['dragenter', 'dragover']) {
+      this.caja.addEventListener(evento, (e) => {
+        if (!e.target.closest('[data-foto]')) return;
+        e.preventDefault();
+        e.target.closest('[data-foto]').dataset.encima = 'true';
+      });
+    }
+    for (const evento of ['dragleave', 'drop']) {
+      this.caja.addEventListener(evento, (e) => {
+        const zona = e.target.closest('[data-foto]');
+        if (!zona) return;
+        e.preventDefault();
+        zona.dataset.encima = 'false';
+        if (evento === 'drop') this._subirFoto(e.dataTransfer?.files?.[0]);
+      });
+    }
+
+    this.caja.addEventListener('change', (e) => {
+      const marca = e.target.closest('[data-perfil-foto]');
+      if (!marca) return;
+      const p = this.datos.perfiles[Number(marca.dataset.perfilFoto)];
+      // `null` = heredar la foto que haya; `false` = esta hoja va sin ella.
+      // Nunca `true`: un perfil no puede PONER una foto que no existe.
+      p.foto = marca.checked ? null : false;
+      this._marcarSucio();
+    });
+
     this.caja.addEventListener('change', (e) => {
       const marca = e.target.closest('[data-perfil][data-lista]');
       if (!marca) return;
@@ -666,6 +752,62 @@ export class Admin {
     ventana?.focus();
   }
 
+  async _subirFoto(fichero) {
+    if (!fichero) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(fichero.type)) {
+      this.aviso = { mal: true, texto: `«${fichero.type || 'eso'}» no es una imagen que sirva. JPG, PNG o WebP.` };
+      this._pintarEstado();
+      return;
+    }
+    // Cuatro megas. Una foto de currículo son doscientos kilos; de aquí para
+    // arriba es una foto sin recortar que va a viajar entera en cada carga del
+    // sitio y a engordar el PDF sin que se note en la calidad impresa.
+    if (fichero.size > 4 * 1024 * 1024) {
+      this.aviso = {
+        mal: true,
+        texto: `Pesa ${(fichero.size / 1024 / 1024).toFixed(1)} MB. Recórtala: una foto de carné basta con 300 kB.`,
+      };
+      this._pintarEstado();
+      return;
+    }
+    try {
+      const datos = await new Promise((cumplir, fallar) => {
+        const lector = new FileReader();
+        lector.onload = () => cumplir(lector.result);
+        lector.onerror = () => fallar(new Error('no se ha podido leer el fichero'));
+        lector.readAsDataURL(fichero);
+      });
+      const res = await fetch('/__editor/retrato', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datos }),
+      });
+      const cuerpo = await res.json();
+      if (!res.ok || !cuerpo.ok) throw new Error(cuerpo.error ?? `HTTP ${res.status}`);
+      this.datos.identidad.foto = cuerpo.ruta;
+      this._fotoVersion = Date.now();
+      this._marcarSucio();
+      this._repintarHoja();
+      this.aviso = { texto: 'Foto puesta. Guarda para que entre en la hoja de vida.' };
+      this._pintarEstado();
+    } catch (e) {
+      this.aviso = { mal: true, texto: `No se ha podido subir: ${e.message}` };
+      this._pintarEstado();
+    }
+  }
+
+  async _quitarFoto() {
+    try {
+      await fetch('/__editor/retrato', { method: 'DELETE' });
+    } catch {
+      /* si el servidor no responde, al menos se quita de los datos */
+    }
+    this.datos.identidad.foto = null;
+    this._fotoVersion = Date.now();
+    this._marcarSucio();
+    this._repintarHoja();
+  }
+
   _exportar() {
     const blob = new Blob([`${JSON.stringify(this.datos, null, 2)}\n`], { type: 'application/json' });
     const a = document.createElement('a');
@@ -711,7 +853,7 @@ export class Admin {
  */
 function estructurar(origen) {
   const d = structuredClone(origen);
-  d.identidad = { name: '', role: '', oghamMotto: '', ...d.identidad };
+  d.identidad = { name: '', role: '', oghamMotto: '', foto: null, ...d.identidad };
   d.perfil = { title: '', subtitle: '', body: [], facts: [], ...d.perfil };
   d.contacto = { title: '', subtitle: '', intro: '', links: [], endpoint: null, ...d.contacto };
   d.proyectos = (d.proyectos ?? []).map((p, i) => ({
@@ -736,6 +878,7 @@ function estructurar(origen) {
     role: null,
     resumen: null,
     enfoque: null,
+    foto: null,
     proyectos: null,
     habilidades: null,
     trayectoria: null,
@@ -817,6 +960,7 @@ function nuevoDe(ruta, arr) {
         role: null,
         resumen: null,
         enfoque: null,
+        foto: null,
         proyectos: null,
         habilidades: null,
         trayectoria: null,

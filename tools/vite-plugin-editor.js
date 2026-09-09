@@ -17,7 +17,7 @@
  * Aquí el guardado cae exactamente donde tiene que caer, versionado con el resto.
  */
 
-import { mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 
 /** Extensiones de imagen admitidas, y su cabecera de data URL. */
@@ -111,6 +111,7 @@ export function editorPlugin({
   escena = 'src/editor/escena.json',
   contenido = 'src/contenido.json',
   texturas = 'public/texturas',
+  retratos = 'public',
 } = {}) {
   let raiz = process.cwd();
 
@@ -166,6 +167,7 @@ export function editorPlugin({
       const rutaEscena = resolve(raiz, escena);
       const rutaContenido = resolve(raiz, contenido);
       const rutaTexturas = resolve(raiz, texturas);
+      const rutaRetratos = resolve(raiz, retratos);
 
       server.middlewares.use('/__editor/escena', async (req, res, next) => {
         if (req.method === 'GET') {
@@ -227,6 +229,46 @@ export function editorPlugin({
               `${datos.habilidades.length} habilidades, ${datos.trayectoria.length} etapas`
           );
           return responder(res, 200, { ok: true });
+        } catch (e) {
+          return responder(res, 400, { ok: false, error: String(e.message ?? e) });
+        }
+      });
+
+      server.middlewares.use('/__editor/retrato', async (req, res, next) => {
+        // La foto del currículo. Nombre FIJO y una sola, a diferencia de las
+        // texturas: un retrato se sustituye, no se colecciona, y guardarlos con
+        // nombres distintos dejaría en `public/` un rastro de fotos viejas que
+        // se publican con el sitio sin que nadie se acuerde de ellas.
+        if (req.method === 'DELETE') {
+          for (const ext of Object.values(IMAGENES)) {
+            const f = join(rutaRetratos, `retrato${ext}`);
+            if (existsSync(f)) rmSync(f);
+          }
+          server.config.logger.info('[panel] retrato borrado');
+          return responder(res, 200, { ok: true });
+        }
+        if (req.method !== 'POST') return next();
+        try {
+          const { datos } = await leerJson(req);
+          const cabecera = /^data:([^;]+);base64,/.exec(datos ?? '');
+          if (!cabecera) throw new Error('se esperaba una data URL en base64');
+          const extension = IMAGENES[cabecera[1]];
+          if (!extension) throw new Error(`tipo no admitido: ${cabecera[1]}`);
+
+          // Se borran los demás formatos: si había un .png y ahora entra un
+          // .jpg, quedarían los dos y el sitio publicaría el que no toca.
+          for (const ext of Object.values(IMAGENES)) {
+            const f = join(rutaRetratos, `retrato${ext}`);
+            if (existsSync(f)) rmSync(f);
+          }
+          const fichero = `retrato${extension}`;
+          mkdirSync(rutaRetratos, { recursive: true });
+          writeFileSync(
+            join(rutaRetratos, fichero),
+            Buffer.from(datos.slice(cabecera[0].length), 'base64')
+          );
+          server.config.logger.info(`[panel] retrato guardado · ${fichero}`);
+          return responder(res, 200, { ok: true, ruta: fichero });
         } catch (e) {
           return responder(res, 400, { ok: false, error: String(e.message ?? e) });
         }

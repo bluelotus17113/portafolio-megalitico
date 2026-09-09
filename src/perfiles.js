@@ -41,6 +41,7 @@ export const PERFIL_COMPLETO = {
   role: null,
   resumen: null,
   enfoque: null,
+  foto: null,
   proyectos: null,
   habilidades: null,
   trayectoria: null,
@@ -97,6 +98,14 @@ export function aplicarPerfil(datos, perfil) {
   };
 
   if (p.role) salida.identidad.role = p.role;
+  // La foto se QUITA por perfil, nunca se pone: la que hay es la que hay.
+  //
+  // Y es el campo que más se adapta al destino de la candidatura. En Colombia y
+  // en España un currículo con foto es lo normal; en el mundo anglosajón se
+  // desaconseja abiertamente —por sesgo en la criba— y algunas empresas
+  // descartan los que la llevan. Con una sola hoja habría que borrar el fichero
+  // antes de cada envío y volver a subirlo después.
+  if (p.foto === false) salida.identidad.foto = null;
   if (Array.isArray(p.resumen) && p.resumen.length) salida.perfil.body = p.resumen;
 
   if (p.enfoque) {

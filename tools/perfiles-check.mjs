@@ -28,7 +28,7 @@
  */
 
 import puppeteer from 'puppeteer-core';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { aplicarPerfil, idEtapa, PERFIL_COMPLETO, perfilPorId } from '../src/perfiles.js';
 
 const RUTA = 'src/contenido.json';
@@ -47,6 +47,19 @@ const comprobar = (ok, texto, detalle = '') => {
   if (!ok) fallos++;
   console.log(`  ${ok ? '✓' : '✗'} ${texto}${detalle ? `  ${detalle}` : ''}`);
 };
+
+/**
+ * Un JPEG de 1×1 en base64. Sirve porque lo que se prueba es el CAMINO —que
+ * suba, que se guarde, que se imprima y que un perfil pueda quitarla—, no la
+ * imagen. Escrito aquí para que la prueba no dependa de tener una foto suelta
+ * en el disco ni de que alguien la borre.
+ */
+const JPEG_MINIMO =
+  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+  'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+  'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+const RETRATO = 'public/retrato.jpg';
+const TMP_JPG = '/tmp/perfiles-check-retrato.jpg';
 
 console.log('\n── Hojas de vida a medida ─────────────────────────────────────\n');
 
@@ -220,9 +233,109 @@ try {
     `${todos.fichas}`
   );
 
+  // ── La foto ──────────────────────────────────────────────────────────────
+  //
+  // Va en `<img>` y no en un fondo de CSS a propósito: los navegadores NO
+  // imprimen los fondos, así que una foto puesta con `background-image` se ve
+  // en pantalla y desaparece del PDF — el único sitio donde importa.
+  console.log('\n  la foto');
+  // Por el SELECTOR DE FICHERO, que es lo que usa una persona.
+  //
+  // La primera versión llamaba a la ruta a mano y luego a `_guardar()`, y daba
+  // «subida ✓» con la foto sin guardar: `_guardar` sale antes si no hay cambios
+  // pendientes, y escribir el dato a pelo no marca nada como sucio. Los tres
+  // fallos que salían después eran ciertos —la hoja no tenía foto— pero la
+  // causa era la prueba, no el código. Usando el input real se ejercita
+  // `_subirFoto`, que es quien marca sucio, y el camino que se prueba es el que
+  // existe.
+  writeFileSync(TMP_JPG, Buffer.from(JPEG_MINIMO, 'base64'));
+  // El selector de fichero sólo existe con Identidad montada: el panel dibuja
+  // una sección cada vez.
+  await page.evaluate(() => document.querySelector('[data-seccion="identidad"]').click());
+  const entrada = await page.waitForSelector('[data-foto-fichero]', { timeout: 10000 });
+  await entrada.uploadFile(TMP_JPG);
+  await new Promise((r) => setTimeout(r, 700));
+  const subida = await page.evaluate(async () => {
+    const a = window.__admin;
+    await a._guardar();
+    return { ok: Boolean(a.datos.identidad.foto), ruta: a.datos.identidad.foto, sucio: a.sucio };
+  });
+  comprobar(subida.ok === true, 'La foto se sube al proyecto', subida.ruta ?? '');
+  comprobar(subida.sucio === false, 'Y se guarda en el contenido');
+  comprobar(
+    JSON.parse(readFileSync(RUTA, 'utf8')).identidad.foto === 'retrato.jpg',
+    'La ruta queda escrita en src/contenido.json'
+  );
+  comprobar(
+    subida.ruta === 'retrato.jpg' && existsSync(RETRATO),
+    'Con nombre fijo: un retrato se sustituye, no se colecciona',
+    subida.ruta ?? ''
+  );
+
+  const conFoto = await browser.newPage();
+  await conFoto.goto(`${BASE}?modo=ligero`, { waitUntil: 'networkidle2', timeout: 120000 });
+  await conFoto.waitForSelector('.cv', { timeout: 30000 });
+  const vista = await conFoto.evaluate(async () => {
+    const img = document.querySelector('.cv__foto');
+    if (!img) return { hay: false };
+    await img.decode().catch(() => {});
+    return { hay: true, cargada: img.naturalWidth > 0, esImg: img.tagName === 'IMG' };
+  });
+  comprobar(vista.hay && vista.esImg, 'Sale en la hoja, y como <img> para que se imprima');
+  comprobar(vista.cargada, 'Y el navegador la encuentra de verdad');
+
+  // El PDF es el único juez de si se imprime. Un `<img>` sí; un fondo, no.
+  await conFoto.pdf({ path: '/tmp/perfiles-check.pdf', printBackground: false, format: 'A4' });
+  const pdf = readFileSync('/tmp/perfiles-check.pdf').toString('latin1');
+  comprobar(
+    (pdf.match(/\/Subtype\s*\/Image/g) ?? []).length > 0,
+    'Y llega al PDF impreso, que es el único sitio donde importa'
+  );
+
+  // Y el interruptor: una hoja puede ir sin ella. En el mundo anglosajón una
+  // foto en el currículo se desaconseja, y borrar el fichero antes de cada
+  // envío para volver a subirlo después no es una forma de trabajar.
+  // Igual que arriba: por la casilla real. Empujar el perfil al estado a mano
+  // no marca nada como sucio y `_guardar` no llega a escribir.
+  const quitada = await page.evaluate(async () => {
+    const a = window.__admin;
+    document.querySelector('[data-seccion="perfiles"]').click();
+    await new Promise((r) => setTimeout(r, 80));
+    document.querySelector('[data-accion="anadir"][data-lista="perfiles"]').click();
+    await new Promise((r) => setTimeout(r, 80));
+
+    const i = a.datos.perfiles.findIndex((p) => p.id !== 'prueba');
+    const casilla = document.querySelector(`[data-perfil-foto="${i}"]`);
+    const marcadaAlNacer = casilla.checked;
+    casilla.checked = false;
+    casilla.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 60));
+
+    a.datos.perfiles[i].id = 'sin-foto';
+    a.datos.perfiles[i].nombre = 'Sin foto';
+    await a._guardar();
+    return { marcadaAlNacer, foto: a.datos.perfiles[i].foto };
+  });
+  // Un perfil nace heredando la foto: se trabaja quitando, no poniendo.
+  comprobar(quitada.marcadaAlNacer === true, 'Un perfil nace con el retrato puesto');
+  comprobar(quitada.foto === false, 'Y desmarcarla lo deja en false, no en true');
+  const sinFoto = await browser.newPage();
+  await sinFoto.goto(`${BASE}?modo=ligero&perfil=sin-foto`, { waitUntil: 'networkidle2', timeout: 120000 });
+  await sinFoto.waitForSelector('.cv', { timeout: 30000 });
+  const nada = await sinFoto.evaluate(() => ({
+    foto: Boolean(document.querySelector('.cv__foto')),
+    nombre: document.querySelector('.cv__nombre').textContent.trim(),
+  }));
+  comprobar(!nada.foto, 'Un perfil puede quitarla para esa candidatura');
+  comprobar(nada.nombre.length > 0, 'Y la hoja sigue entera sin ella');
+
   comprobar(errores.length === 0, 'Sin errores en consola', errores.slice(0, 2).join(' | '));
 } finally {
   writeFileSync(RUTA, original);
+  // La foto de prueba se borra: es un fichero de verdad en `public/`, y ahí
+  // dentro cualquier cosa que se quede viaja con el sitio publicado.
+  if (existsSync(RETRATO)) rmSync(RETRATO);
+  if (existsSync(TMP_JPG)) rmSync(TMP_JPG);
   const vuelto = readFileSync(RUTA, 'utf8') === original;
   console.log(`\n  ${vuelto ? 'src/contenido.json restaurado.' : '⚠ NO se pudo restaurar contenido.json'}`);
   if (!vuelto) fallos++;

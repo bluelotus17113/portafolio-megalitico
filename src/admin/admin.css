@@ -456,3 +456,55 @@ body.admin-activo {
   opacity: 0.42;
   text-decoration: line-through;
 }
+
+/* ── El retrato ──────────────────────────────────────────────────────────
+ *
+ * Con la misma proporción que tendrá en el papel (26 × 32 mm): así lo que se
+ * ve aquí es lo que sale impreso, recorte incluido. Una previsualización
+ * cuadrada de una foto que se imprime vertical enseña una cara distinta.
+ */
+.ad__foto {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 128px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: center;
+}
+
+.ad__foto:hover,
+.ad__foto[data-encima='true'] {
+  border-color: var(--arcane);
+  background: rgba(79, 230, 216, 0.06);
+}
+
+.ad__foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ad__foto-vacia {
+  padding: 8px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--ink-faint, #6d8388);
+}
+
+.ad__quitar-foto {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ff9d7a;
+  font: inherit;
+  font-size: 0.71rem;
+  text-decoration: underline;
+  cursor: pointer;
+}

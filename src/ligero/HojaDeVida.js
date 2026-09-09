@@ -103,11 +103,22 @@ function cabecera(d) {
     })
     .join('');
 
+  // El retrato va como `<img>` y no como fondo de CSS, y no es indiferente:
+  // los navegadores NO imprimen los fondos salvo que se les insista, así que
+  // una foto puesta con `background-image` sale en pantalla y desaparece en el
+  // PDF. Una imagen de verdad se imprime siempre.
+  const foto = d.identidad.foto
+    ? `<img class="cv__foto" src="${esc(d.identidad.foto)}" alt="Retrato de ${esc(d.identidad.name)}" />`
+    : '';
+
   return `
-    <header class="cv__cab">
-      <h1 class="cv__nombre">${esc(d.identidad.name)}</h1>
-      <p class="cv__rol">${esc(d.identidad.role)}</p>
-      ${canales ? `<ul class="cv__canales">${canales}</ul>` : ''}
+    <header class="cv__cab${foto ? ' cv__cab--con-foto' : ''}">
+      <div class="cv__cab-texto">
+        <h1 class="cv__nombre">${esc(d.identidad.name)}</h1>
+        <p class="cv__rol">${esc(d.identidad.role)}</p>
+        ${canales ? `<ul class="cv__canales">${canales}</ul>` : ''}
+      </div>
+      ${foto}
     </header>`;
 }
 

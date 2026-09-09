@@ -76,6 +76,25 @@
     margin-bottom: 5mm;
   }
 
+  /* Con retrato, la cabecera pasa a dos columnas y el texto no se estrecha:
+     la foto ocupa una banda fija a la derecha y lo demás usa lo que queda. */
+  .cv__cab--con-foto {
+    display: grid;
+    grid-template-columns: 1fr 26mm;
+    gap: 6mm;
+    align-items: start;
+  }
+
+  .cv__foto {
+    width: 26mm;
+    height: 32mm;
+    object-fit: cover;
+    /* Un filete fino y nada de esquinas redondeadas: el resto del documento se
+       compone con líneas rectas, y una foto con bordes redondos al lado de una
+       retícula de filetes se lee como pegada de otro sitio. */
+    border: 0.5pt solid #b8c2c4;
+  }
+
   .cv__nombre {
     font-family: var(--serif);
     font-size: 23pt;
