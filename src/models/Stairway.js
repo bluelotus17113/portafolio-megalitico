@@ -493,7 +493,7 @@ export function stairwayKeepOut(field) {
  * ocho seguidas y de lejos se leen como un galón negro dentado sobre cada
  * peldaño. Parece un problema de sombras y no lo es.
  */
-function cuerpoGeometry(plan, ruido) {
+function cuerpoGeometry(plan, ruido, field) {
   const { ancho } = STAIRWAY;
   const LOSA = 2.2;
   const COLUMNAS = 6;
@@ -503,8 +503,12 @@ function cuerpoGeometry(plan, ruido) {
   const uvs = [];
   const indices = [];
 
+  /** Índice base de cada fila, en orden. Lo usa la falda del final. */
+  const filas = [];
+
   const fila = (l, y, v) => {
     const base = positions.length / 3;
+    filas.push(base);
     const p = enL(plan, l);
     // Normal a la marcha, en el plano.
     const nx = -p.tz;
@@ -570,6 +574,69 @@ function cuerpoGeometry(plan, ruido) {
     cose(abajo, arriba);
     v += alto;
   });
+
+  // ---- La falda ----------------------------------------------------------
+  //
+  // La escalinata era una CINTA: una superficie de escalones sin bajos ni
+  // costados. Medido sobre sus aristas de borde —las que pertenecen a un solo
+  // triángulo, o sea el contorno abierto de la malla—: 1.626 aristas abiertas,
+  // de las cuales 1.553 quedaban en el aire, la peor a 3,13 m del suelo. Eso es
+  // exactamente lo que se ve como «la isla está rota» — se mira el canto de la
+  // escalera y hay hierba debajo.
+  //
+  // Los muretes tapaban buena parte, pero sólo acompañan al tramo principal y
+  // sólo por los lados: los extremos y todo lo que sobresale de ellos quedaba
+  // abierto. Una falda cierra el contorno ENTERO y no depende de que otra pieza
+  // pase por delante, que es lo que hacía que el fallo apareciera justo en los
+  // sitios donde el muro se acaba.
+  if (field) {
+    const HUNDIR = 0.9;
+    // Un vértice de abajo POR CADA vértice del contorno, y compartido.
+    //
+    // Sin la caché, cada paño se creaba los suyos y los faldones quedaban
+    // sueltos unos de otros: medido, las aristas abiertas SUBÍAN de 1.626 a
+    // 3.070 en vez de bajar, porque cada cuadrilátero aportaba sus cuatro
+    // bordes en vez de coserse al vecino. Una falda con costuras verticales
+    // abiertas no tapa nada; es el mismo agujero repetido.
+    const suelo = new Map();
+    const abajoDe = (i) => {
+      const cacheado = suelo.get(i);
+      if (cacheado !== undefined) return cacheado;
+      const x = positions[i * 3];
+      const y = positions[i * 3 + 1];
+      const z = positions[i * 3 + 2];
+      const nuevo = positions.length / 3;
+      positions.push(x, Math.min(y, field.height(x, z)) - HUNDIR, z);
+      // La UV del faldón se estira en vertical desde la del canto: la piedra
+      // sigue leyéndose a la misma escala que la del peldaño de encima.
+      uvs.push(uvs[i * 2], uvs[i * 2 + 1] - HUNDIR / 2.2);
+      suelo.set(i, nuevo);
+      return nuevo;
+    };
+
+    /** Cose un paño vertical entre dos vértices del contorno. */
+    const pano = (a, b, invertir) => {
+      const a2 = abajoDe(a);
+      const b2 = abajoDe(b);
+      if (invertir) indices.push(a, a2, b, b, a2, b2);
+      else indices.push(a, b, a2, b, b2, a2);
+    };
+
+    // Los dos costados, fila a fila.
+    for (let r = 0; r + 1 < filas.length; r++) {
+      const f0 = filas[r];
+      const f1 = filas[r + 1];
+      pano(f0, f1, false);
+      pano(f0 + COLUMNAS, f1 + COLUMNAS, true);
+    }
+    // Y los dos testeros, para que la cinta no se vea cortada por los extremos.
+    for (const [f, invertir] of [
+      [filas[0], true],
+      [filas[filas.length - 1], false],
+    ]) {
+      for (let c = 0; c < COLUMNAS; c++) pano(f + c, f + c + 1, invertir);
+    }
+  }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -776,7 +843,7 @@ export function createStairway(field) {
   matEscalones.name = 'escalinata';
   applyToonShading(matEscalones, { ...TOON_PRESETS.paving, key: 'paving-stair' });
 
-  const escalones = new THREE.Mesh(cuerpoGeometry(plan, ruido), matEscalones);
+  const escalones = new THREE.Mesh(cuerpoGeometry(plan, ruido, field), matEscalones);
   escalones.name = 'escalinata-escalones';
   escalones.castShadow = true;
   escalones.receiveShadow = true;
@@ -850,7 +917,7 @@ export function createStairway(field) {
   for (const entrega of plan.entregas) {
     const mini = planEntrega(plan, field, entrega);
     if (!mini) continue;
-    const cuerpo = new THREE.Mesh(cuerpoGeometry(mini, ruido), matEscalones);
+    const cuerpo = new THREE.Mesh(cuerpoGeometry(mini, ruido, field), matEscalones);
     cuerpo.name = `escalinata-entrega-${entrega.id}`;
     cuerpo.castShadow = true;
     cuerpo.receiveShadow = true;
