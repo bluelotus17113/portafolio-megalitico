@@ -78,6 +78,7 @@ export function hojaDeVidaHTML(perfilElegido = null) {
       ${cabecera(d)}
       ${perfil(d)}
       ${experiencia(d)}
+      ${formacion(d)}
       ${habilidades(d)}
       ${proyectos(d)}
       ${pie()}
@@ -108,7 +109,8 @@ function cabecera(d) {
   // una foto puesta con `background-image` sale en pantalla y desaparece en el
   // PDF. Una imagen de verdad se imprime siempre.
   const foto = d.identidad.foto
-    ? `<img class="cv__foto" src="${esc(d.identidad.foto)}" alt="Retrato de ${esc(d.identidad.name)}" />`
+    ? `<img class="cv__foto" src="${esc(d.identidad.foto)}" alt="Retrato de ${esc(d.identidad.name)}"
+           onerror="this.closest('.cv__cab')?.classList.remove('cv__cab--con-foto'); this.remove();" />`
     : '';
 
   return `
@@ -163,6 +165,39 @@ function experiencia(d) {
 }
 
 /** Una línea por familia, ordenada de más fuerte a menos. Ver el cabecero. */
+/**
+ * Formación.
+ *
+ * Comparte forma y maquetación con la experiencia —periodo a la izquierda,
+ * contenido a la derecha— porque en un currículo son la misma retícula, y
+ * repetirla es lo que hace que el documento se lea como uno solo.
+ *
+ * `role` guarda el título obtenido y `org` el centro. Los nombres vienen de la
+ * trayectoria y se conservan a propósito: misma forma, mismo editor, mismo
+ * renderizado. Un `formacion.titulo` habría obligado a duplicar las tres cosas
+ * para no ganar nada.
+ *
+ * Va DESPUÉS de la experiencia porque ya hay una trayectoria laboral que
+ * enseñar; en una hoja sin empleos, la formación iría delante.
+ */
+function formacion(d) {
+  if (!d.formacion?.length) return '';
+  const hitos = [...d.formacion]
+    .reverse()
+    .map(
+      (e) => `
+      <li class="cv__hito">
+        <p class="cv__periodo">${esc(e.period)}</p>
+        <div>
+          <h3 class="cv__puesto">${esc(e.role)}${e.org ? ` <span class="cv__org">· ${esc(e.org)}</span>` : ''}</h3>
+          ${e.detail ? `<p>${esc(e.detail)}</p>` : ''}
+        </div>
+      </li>`
+    )
+    .join('');
+  return bloque('Formación', `<ol class="cv__hitos">${hitos}</ol>`);
+}
+
 function habilidades(d) {
   if (!d.habilidades?.length) return '';
   const familias = [...new Set(d.habilidades.map((s) => s.family))];

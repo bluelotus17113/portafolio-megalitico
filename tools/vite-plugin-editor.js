@@ -94,7 +94,7 @@ function revisarContenido(datos) {
       return `falta el bloque «${clave}»`;
     }
   }
-  for (const clave of ['proyectos', 'habilidades', 'trayectoria']) {
+  for (const clave of ['proyectos', 'habilidades', 'trayectoria', 'formacion']) {
     if (!Array.isArray(datos[clave])) return `«${clave}» tiene que ser una lista`;
   }
   if (!Array.isArray(datos.perfil.body)) return '«perfil.body» tiene que ser una lista de párrafos';

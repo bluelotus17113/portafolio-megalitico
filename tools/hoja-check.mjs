@@ -24,7 +24,16 @@
 
 import puppeteer from 'puppeteer-core';
 import { existsSync, readFileSync } from 'node:fs';
-import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../src/content.js';
+import {
+  ABOUT,
+  CONTACT,
+  etiquetaEstado,
+  EXPERIENCE,
+  FORMACION,
+  IDENTITY,
+  PROJECTS,
+  SKILLS,
+} from '../src/content.js';
 
 const BASE = process.env.URL ?? 'http://127.0.0.1:5173/';
 const SALIDA = process.env.PDF ?? '/tmp/hoja-check.pdf';
@@ -109,6 +118,8 @@ const falta = (lista) => lista.filter((v) => v && !texto.includes(v));
 comprobar(texto.includes(IDENTITY.name) && texto.includes(IDENTITY.role), 'Nombre y oficio');
 const sinExp = falta(EXPERIENCE.flatMap((e) => [e.period, e.role, e.org]));
 comprobar(sinExp.length === 0, `Las ${EXPERIENCE.length} etapas de la trayectoria`, sinExp.join(', '));
+const sinFor = falta(FORMACION.flatMap((e) => [e.period, e.role, e.org]));
+comprobar(sinFor.length === 0, `Los ${FORMACION.length} estudios`, sinFor.join(', '));
 const sinSkill = falta(SKILLS.map((s) => s.name));
 comprobar(sinSkill.length === 0, `Las ${SKILLS.length} habilidades`, sinSkill.join(', '));
 const sinFam = falta([...new Set(SKILLS.map((s) => s.family))]);
@@ -196,7 +207,16 @@ comprobar(paginas >= 1 && paginas <= 3, 'De una a tres páginas', `${paginas}`);
 // tiene una imagen. Esta es la comprobación que separa un currículo legible
 // por una máquina de uno que es una foto.
 comprobar(cuenta(/\/Type\s*\/Font/g) > 0, 'Con tipografías incrustadas: es TEXTO, no una imagen');
-comprobar(cuenta(/\/Subtype\s*\/Image/g) === 0, 'Y sin ninguna imagen dentro');
+// Y la cuenta de imágenes es EXACTAMENTE la del retrato. Antes se exigía cero,
+// que era la misma idea cuando la hoja no llevaba foto; ahora un cero
+// significaría que el retrato no llegó al papel, y un dos, que se coló un fondo
+// rasterizado. Atarlo al dato es lo que mantiene viva la afirmación.
+const conRetrato = Boolean(JSON.parse(readFileSync('src/contenido.json', 'utf8')).identidad.foto);
+comprobar(
+  cuenta(/\/Subtype\s*\/Image/g) === (conRetrato ? 1 : 0),
+  conRetrato ? 'Y la única imagen es el retrato' : 'Y sin ninguna imagen dentro',
+  `${cuenta(/\/Subtype\s*\/Image/g)}`
+);
 const enlaces = cuenta(/\/Subtype\s*\/Link/g);
 const esperados = (CONTACT.links ?? []).filter((l) => l.href).length + PROJECTS.filter((p) => p.url).length + 1;
 comprobar(enlaces >= esperados, 'Los enlaces siguen pinchables en el PDF', `${enlaces} de ${esperados}`);

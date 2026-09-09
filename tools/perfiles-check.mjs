@@ -103,6 +103,21 @@ comprobar(
 
 // ── 2. El viaje entero, en el navegador ────────────────────────────────────
 const original = readFileSync(RUTA, 'utf8');
+
+// El retrato de VERDAD, si lo hay.
+//
+// Esta prueba sube una foto y luego limpia lo suyo, y en la primera versión
+// limpiaba borrando `public/retrato.jpg` a secas — que es exactamente el
+// fichero donde vive el retrato del dueño del currículo. Ejecutarla después de
+// que él subiera su foto se la borraba, y el PDF salía con el icono de imagen
+// rota en la cabecera sin que nada avisara. Una prueba no puede destruir el
+// material sobre el que se ejecuta.
+const RESPALDO = 'node_modules/.cache/perfiles-check';
+const habiaRetrato = existsSync(RETRATO);
+if (habiaRetrato) {
+  mkdirSync(RESPALDO, { recursive: true });
+  writeFileSync(`${RESPALDO}/retrato.jpg`, readFileSync(RETRATO));
+}
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
 
 try {
@@ -334,7 +349,9 @@ try {
   writeFileSync(RUTA, original);
   // La foto de prueba se borra: es un fichero de verdad en `public/`, y ahí
   // dentro cualquier cosa que se quede viaja con el sitio publicado.
-  if (existsSync(RETRATO)) rmSync(RETRATO);
+  // Se devuelve el retrato que había, o se quita el que puso la prueba.
+  if (habiaRetrato) writeFileSync(RETRATO, readFileSync(`${RESPALDO}/retrato.jpg`));
+  else if (existsSync(RETRATO)) rmSync(RETRATO);
   if (existsSync(TMP_JPG)) rmSync(TMP_JPG);
   const vuelto = readFileSync(RUTA, 'utf8') === original;
   console.log(`\n  ${vuelto ? 'src/contenido.json restaurado.' : '⚠ NO se pudo restaurar contenido.json'}`);

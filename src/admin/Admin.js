@@ -45,6 +45,7 @@ const SECCIONES = [
   { id: 'proyectos', label: 'Proyectos' },
   { id: 'habilidades', label: 'Habilidades' },
   { id: 'trayectoria', label: 'Trayectoria' },
+  { id: 'formacion', label: 'Formación' },
   { id: 'contacto', label: 'Contacto' },
 ];
 
@@ -190,6 +191,8 @@ export class Admin {
         return this._habilidades();
       case 'trayectoria':
         return this._trayectoria();
+      case 'formacion':
+        return this._formacion();
       default:
         return this._contacto();
     }
@@ -485,6 +488,23 @@ export class Admin {
     });
   }
 
+  _formacion() {
+    return lista({
+      titulo: 'Formación',
+      ayuda:
+        'De la más ANTIGUA a la más reciente, igual que la trayectoria. En «Puesto» va el título obtenido y en «Organización» el centro.',
+      ruta: 'formacion',
+      items: this.datos.formacion,
+      resumen: (e) => `${e.period || '—'} · ${e.role || 'Sin título'}`,
+      fila: (e, i) => [
+        campo({ ruta: `formacion.${i}.period`, etiqueta: 'Periodo', valor: e.period, ancho: 'corto' }),
+        campo({ ruta: `formacion.${i}.role`, etiqueta: 'Título', valor: e.role }),
+        campo({ ruta: `formacion.${i}.org`, etiqueta: 'Centro', valor: e.org }),
+        area({ ruta: `formacion.${i}.detail`, etiqueta: 'Detalle', valor: e.detail, filas: 2 }),
+      ],
+    });
+  }
+
   _contacto() {
     const d = this.datos.contacto;
     return (
@@ -688,6 +708,7 @@ export class Admin {
     if (ruta === 'proyectos') return dato.title || 'Sin título';
     if (ruta === 'habilidades') return dato.name || 'Sin nombre';
     if (ruta === 'trayectoria') return `${dato.period || '—'} · ${dato.role || 'Sin puesto'}`;
+    if (ruta === 'formacion') return `${dato.period || '—'} · ${dato.role || 'Sin título'}`;
     if (ruta === 'contacto.links') return `${dato.label}: ${dato.value || '—'}`;
     if (ruta === 'perfiles') return dato.nombre || 'Sin nombre';
     return '';
@@ -870,6 +891,7 @@ function estructurar(origen) {
   }));
   d.habilidades = (d.habilidades ?? []).map((s) => ({ name: '', family: '', level: 0.5, ...s }));
   d.trayectoria = (d.trayectoria ?? []).map((e) => ({ period: '', role: '', org: '', detail: '', ...e }));
+  d.formacion = (d.formacion ?? []).map((e) => ({ period: '', role: '', org: '', detail: '', ...e }));
   d.perfil.facts = (d.perfil.facts ?? []).map((f) => ({ label: '', value: '', ...f }));
   d.contacto.links = (d.contacto.links ?? []).map((l) => ({ label: '', value: '', href: null, ...l }));
   d.perfiles = (d.perfiles ?? []).map((p, i) => ({
@@ -948,6 +970,7 @@ function nuevoDe(ruta, arr) {
       // Hereda la familia de la última: se añaden a rachas, por grupos.
       return { name: '', family: arr.at(-1)?.family ?? 'Núcleo', level: 0.6 };
     case 'trayectoria':
+    case 'formacion':
       return { period: '', role: '', org: '', detail: '' };
     case 'contacto.links':
       return { label: '', value: '', href: null, rune: 'ansuz' };

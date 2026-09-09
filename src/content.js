@@ -69,6 +69,7 @@ export const ABOUT = datos.perfil;
 export const PROJECTS = datos.proyectos;
 export const SKILLS = datos.habilidades;
 export const EXPERIENCE = datos.trayectoria;
+export const FORMACION = datos.formacion ?? [];
 export const CONTACT = datos.contacto;
 
 /**

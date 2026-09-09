@@ -1,8 +1,9 @@
 {
   "identidad": {
     "name": "ISAAC LEVI NAVAS OYOLA",
-    "role": "Desarrollador De Software",
-    "oghamMotto": "vakna"
+    "role": "Desarrollador de software",
+    "oghamMotto": "vakna",
+    "foto": null
   },
   "perfil": {
     "title": "Sobre mí",
@@ -13,12 +14,12 @@
     ],
     "facts": [
       {
-        "label": "Colombia",
-        "value": "—"
+        "label": "Ubicación",
+        "value": "Montería, Colombia"
       },
       {
         "label": "Idiomas",
-        "value": "—"
+        "value": "Español nativo · inglés técnico (lectura)"
       },
       {
         "label": "Enfoque",
@@ -32,7 +33,6 @@
       "title": "Portafolio megalítico",
       "tag": "Web · 3D",
       "year": "2026",
-      "estado": "progreso",
       "summary": "Este mismo sitio. Un portafolio donde la información no se lee en una página, se recorre a pie por un paisaje — con una versión ligera, sin 3D y de carga inmediata, que sale de los mismos datos para quien no puede con WebGL. El relieve, el mar, la vegetación, las estaciones y el sonido no son ficheros descargados: se calculan enteros desde una sola semilla.",
       "stack": [
         "Three.js",
@@ -42,6 +42,7 @@
         "JavaScript"
       ],
       "url": "https://github.com/bluelotus17113/portafolio-megalitico",
+      "estado": "progreso",
       "poster": {
         "seed": 101,
         "hue": 186
@@ -52,7 +53,6 @@
       "title": "Vampiros de Colombia",
       "tag": "Videojuego",
       "year": "2026",
-      "estado": "terminado",
       "summary": "Survivor de oleadas levantado sobre mitología colombiana en lugar del bestiario de siempre: el Mohán, la Madremonte, la Patasola, el Bracamonte y el Sombrerón como enemigos, y el Diablo de Riosucio de jefe. Progresión, sistema de logros y pixel art propio. Empaquetado y jugable en Windows, Linux y Android.",
       "stack": [
         "Godot 4",
@@ -60,6 +60,7 @@
         "Pixel art"
       ],
       "url": null,
+      "estado": "terminado",
       "poster": {
         "seed": 327,
         "hue": 348
@@ -70,7 +71,6 @@
       "title": "App de toki pona",
       "tag": "App móvil",
       "year": "2026",
-      "estado": "terminado",
       "summary": "Aplicación Android para aprender toki pona —lecciones, diccionario y práctica— pensada desde el primer día para uso familiar: sin publicidad, sin rastreo y sin identificador de anuncios, cumpliendo COPPA y GDPR-K. Terminada y funcionando en el dispositivo; queda sólo el periodo de pruebas con testers que exige Google Play.",
       "stack": [
         "React",
@@ -79,6 +79,7 @@
         "Android"
       ],
       "url": null,
+      "estado": "terminado",
       "poster": {
         "seed": 660,
         "hue": 158
@@ -89,7 +90,6 @@
       "title": "Renombrador de PDFs",
       "tag": "Herramienta",
       "year": "2026",
-      "estado": "terminado",
       "summary": "Encargo concreto: alguien renombraba a mano lotes de PDFs cruzándolos con un informe, todos los meses. La herramienta lee cada fichero, lo empareja con la fila que le corresponde y lo renombra sola, con OCR para los que llegan escaneados. Con interfaz de escritorio, para que la use quien no abre una terminal.",
       "stack": [
         "Python",
@@ -98,6 +98,7 @@
         "Tesseract OCR"
       ],
       "url": null,
+      "estado": "terminado",
       "poster": {
         "seed": 882,
         "hue": 112
@@ -108,7 +109,6 @@
       "title": "Trypophobia",
       "tag": "Videojuego · En equipo",
       "year": "2026",
-      "estado": "progreso",
       "summary": "Juego de terror y extracción para ocho jugadores en línea, en 3D con Godot. Lo desarrollo con Tote Role, el equipo indie con el que trabajo desde 2020, y mi parte es el diseño de juego y la construcción de los escenarios 3D en Blender: el terror por extracción se sostiene sobre el mapa —rutas, sitios donde esconderse, qué se ve desde dónde—, así que diseño y escenario son aquí el mismo trabajo.",
       "stack": [
         "Diseño de juego",
@@ -118,6 +118,7 @@
         "Multijugador"
       ],
       "url": null,
+      "estado": "progreso",
       "poster": {
         "seed": 445,
         "hue": 12
@@ -128,7 +129,6 @@
       "title": "Mystic Emporium",
       "tag": "Videojuego",
       "year": "2025 — 2026",
-      "estado": "progreso",
       "summary": "Juego cozy de gestión y automatización de una tienda mágica: pedidos, artesanía, ayudantes con especialidad propia, árbol de mejoras y un minijuego de defensa. El problema no era el código sino el volumen de contenido para una sola persona, y se resolvió generando por código los casi 500 sprites del juego — un pipeline que permite rehacer el arte entero cambiando un parámetro.",
       "stack": [
         "Godot 4",
@@ -137,6 +137,7 @@
         "PIL"
       ],
       "url": null,
+      "estado": "progreso",
       "poster": {
         "seed": 214,
         "hue": 288
@@ -147,7 +148,6 @@
       "title": "Isla Nimbo",
       "tag": "Videojuego",
       "year": "2026",
-      "estado": "progreso",
       "summary": "Aldea de vecinos en islas flotantes: gestión de personajes al estilo Tomodachi cruzada con cultivo y vida diaria. Todo el diseño gira sobre una regla dura —el juego nunca castiga por no entrar— y tanto el arte 3D chibi como la música, que cambia con el momento del día, se generan por código.",
       "stack": [
         "Unity 6",
@@ -157,6 +157,7 @@
         "numpy"
       ],
       "url": null,
+      "estado": "progreso",
       "poster": {
         "seed": 438,
         "hue": 42
@@ -165,118 +166,127 @@
   ],
   "habilidades": [
     {
-      "name": "Habilidad A",
-      "family": "Núcleo",
-      "level": 0.95
-    },
-    {
-      "name": "Habilidad B",
-      "family": "Núcleo",
-      "level": 0.9
-    },
-    {
-      "name": "Habilidad C",
-      "family": "Núcleo",
-      "level": 0.82
-    },
-    {
-      "name": "Habilidad D",
-      "family": "Núcleo",
-      "level": 0.75
-    },
-    {
-      "name": "Habilidad E",
-      "family": "Oficio",
-      "level": 0.88
-    },
-    {
-      "name": "Habilidad F",
-      "family": "Oficio",
+      "name": "JavaScript",
+      "family": "Web",
       "level": 0.8
     },
     {
-      "name": "Habilidad G",
-      "family": "Oficio",
-      "level": 0.72
-    },
-    {
-      "name": "Habilidad H",
-      "family": "Oficio",
-      "level": 0.65
-    },
-    {
-      "name": "Habilidad I",
-      "family": "Oficio",
-      "level": 0.6
-    },
-    {
-      "name": "Habilidad J",
-      "family": "Herramientas",
-      "level": 0.78
-    },
-    {
-      "name": "Habilidad K",
-      "family": "Herramientas",
+      "name": "Three.js y WebGL",
+      "family": "Web",
       "level": 0.7
     },
     {
-      "name": "Habilidad L",
-      "family": "Herramientas",
-      "level": 0.62
+      "name": "React",
+      "family": "Web",
+      "level": 0.65
     },
     {
-      "name": "Habilidad M",
-      "family": "Herramientas",
+      "name": "Vite",
+      "family": "Web",
+      "level": 0.6
+    },
+    {
+      "name": "HTML y CSS",
+      "family": "Web",
+      "level": 0.75
+    },
+    {
+      "name": "Godot 4 y GDScript",
+      "family": "Videojuegos",
+      "level": 0.85
+    },
+    {
+      "name": "Diseño de juego",
+      "family": "Videojuegos",
+      "level": 0.8
+    },
+    {
+      "name": "Unity 6 y C#",
+      "family": "Videojuegos",
+      "level": 0.7
+    },
+    {
+      "name": "URP",
+      "family": "Videojuegos",
       "level": 0.55
     },
     {
-      "name": "Habilidad N",
-      "family": "Herramientas",
+      "name": "Blender",
+      "family": "3D y arte",
+      "level": 0.7
+    },
+    {
+      "name": "Entornos 3D",
+      "family": "3D y arte",
+      "level": 0.7
+    },
+    {
+      "name": "Diseño gráfico",
+      "family": "3D y arte",
+      "level": 0.75
+    },
+    {
+      "name": "Pixel art",
+      "family": "3D y arte",
+      "level": 0.6
+    },
+    {
+      "name": "Python",
+      "family": "Automatización",
+      "level": 0.75
+    },
+    {
+      "name": "PyMuPDF y Tesseract OCR",
+      "family": "Automatización",
+      "level": 0.6
+    },
+    {
+      "name": "Tkinter",
+      "family": "Automatización",
       "level": 0.5
+    },
+    {
+      "name": "Capacitor y Android",
+      "family": "Móvil",
+      "level": 0.6
+    },
+    {
+      "name": "Publicación en Play Console",
+      "family": "Móvil",
+      "level": 0.55
+    },
+    {
+      "name": "Git y GitHub",
+      "family": "Herramientas",
+      "level": 0.75
+    },
+    {
+      "name": "Linux",
+      "family": "Herramientas",
+      "level": 0.7
     }
   ],
   "trayectoria": [
     {
-      "id": "20xx-20xx-organizacion",
-      "period": "20XX — 20XX",
-      "role": "Puesto o etapa",
-      "org": "Organización",
-      "detail": "Una o dos frases sobre lo que hiciste y qué dejaste hecho."
+      "id": "comfacor-2019",
+      "period": "2019 — 2020",
+      "org": "Comfacor",
+      "role": "Digitador",
+      "detail": "Digitación y registro de datos del área de salud."
     },
     {
-      "id": "20xx-20xx-organizacion-2",
-      "period": "20XX — 20XX",
-      "role": "Puesto o etapa",
-      "org": "Organización",
-      "detail": "Una o dos frases. Sustituye este texto."
+      "id": "mcdonalds-2021",
+      "period": "2021 — 2023",
+      "org": "McDonald's",
+      "role": "Crew",
+      "detail": "Rotación por todas las estaciones del restaurante: cocina, caja y atención en salón, en turnos rotativos."
     },
     {
-      "id": "20xx-20xx-organizacion-3",
-      "period": "20XX — 20XX",
-      "role": "Puesto o etapa",
-      "org": "Organización",
-      "detail": "Una o dos frases. Sustituye este texto."
-    },
-    {
-      "id": "20xx-20xx-organizacion-4",
-      "period": "20XX — 20XX",
-      "role": "Puesto o etapa",
-      "org": "Organización",
-      "detail": "Una o dos frases. Sustituye este texto."
-    },
-    {
-      "id": "20xx-hoy-organizacion",
-      "period": "20XX — hoy",
-      "role": "Puesto actual",
-      "org": "Organización",
-      "detail": "Una o dos frases. Sustituye este texto."
-    },
-    {
-      "id": "sep-2020-actualidad-tote-role-equipo-indie",
+      "id": "tote-role-2020",
       "period": "sep. 2020 — actualidad",
-      "role": "Diseño de juego y entornos 3D",
       "org": "Tote Role — equipo indie",
-      "detail": "Equipo indie de desarrollo de videojuegos. Me ocupo del diseño de juego y de construir los escenarios 3D en Blender, en coordinación con el resto del equipo. Ahora en Trypophobia, un juego de terror y extracción para ocho jugadores hecho en Godot."
+      "role": "Diseño de juego y entornos 3D",
+      "detail": "Diseño de juego y construcción de entornos 3D en Blender, en un equipo de cinco personas."
     }
   ],
   "contacto": {
@@ -287,13 +297,13 @@
       {
         "label": "Correo",
         "value": "vaknadesu@gmail.com",
-        "href": null,
+        "href": "mailto:vaknadesu@gmail.com",
         "rune": "ansuz"
       },
       {
         "label": "GitHub",
-        "value": "usuario",
-        "href": null,
+        "value": "bluelotus17113",
+        "href": "https://github.com/bluelotus17113",
         "rune": "gebo"
       },
       {
@@ -311,5 +321,21 @@
     ],
     "endpoint": null
   },
-  "perfiles": []
+  "perfiles": [],
+  "formacion": [
+    {
+      "id": "bachillerato-2017",
+      "period": "— 2017",
+      "role": "Bachiller académico",
+      "org": "Liceo La Pradera — Montería",
+      "detail": ""
+    },
+    {
+      "id": "diseno-grafico-2019",
+      "period": "2018 — 2019",
+      "role": "Diseño gráfico",
+      "org": "Tecnológico San Agustín",
+      "detail": ""
+    }
+  ]
 }
