@@ -80,6 +80,14 @@ export const CONTACT = datos.contacto;
 export const CONTENIDO = datos;
 
 /**
+ * Perfiles de la hoja de vida. Ver `perfiles.js`.
+ *
+ * Sólo afectan al currículo: la isla y la versión ligera enseñan siempre todo.
+ * Un portafolio que se recorta según a qué se opta deja de ser un portafolio.
+ */
+export const PERFILES = datos.perfiles ?? [];
+
+/**
  * En qué punto está un proyecto.
  *
  * Vive aquí, y no repetido en cada sitio que lo pinta, porque lo enseñan

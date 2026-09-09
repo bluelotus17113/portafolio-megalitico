@@ -38,29 +38,48 @@
  * elegante, es un descuido.
  */
 
-import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
+import { CONTENIDO, etiquetaEstado } from '../content.js';
+import { aplicarPerfil, PERFIL_COMPLETO, perfilPorId } from '../perfiles.js';
 import { esc } from '../utils/html.js';
 
 /** ¿Este valor dice algo? Los marcadores de posición de `content.js` no. */
 const tieneValor = (v) => Boolean(v) && v.trim() !== '' && v.trim() !== '—' && v.trim() !== '-';
 
-/** Nombre que el navegador propondrá para el fichero. */
-export function tituloHoja() {
-  return `${IDENTITY.name} — Hoja de vida`;
+/**
+ * Nombre que el navegador propondrá para el fichero.
+ *
+ * Con el perfil dentro cuando no es el completo: quien manda cinco
+ * candidaturas acaba con cinco PDF en la carpeta de descargas, y todos
+ * llamados igual es exactamente cómo se manda el equivocado.
+ */
+export function tituloHoja(perfil = null) {
+  const p = perfil ?? PERFIL_COMPLETO;
+  const sufijo = p.id === PERFIL_COMPLETO.id ? '' : ` (${p.nombre})`;
+  return `${CONTENIDO.identidad.name} — Hoja de vida${sufijo}`;
+}
+
+/** El perfil que pide la dirección, si lo pide. */
+export function perfilPedido() {
+  const id = new URLSearchParams(location.search).get('perfil');
+  return perfilPorId(CONTENIDO.perfiles, id);
 }
 
 /**
  * El documento entero. En pantalla no se ve (`display: none` en la hoja de
  * estilos); sólo existe al imprimir.
  */
-export function hojaDeVidaHTML() {
+export function hojaDeVidaHTML(perfilElegido = null) {
+  // Todo lo de abajo trabaja sobre ESTOS datos y no sobre los globales: es lo
+  // que deja que el mismo maquetado sirva para la hoja completa y para una
+  // recortada a una vacante, sin una sola rama de código distinta.
+  const d = aplicarPerfil(CONTENIDO, perfilElegido);
   return `
     <article class="cv" id="hoja-de-vida" aria-hidden="true">
-      ${cabecera()}
-      ${perfil()}
-      ${experiencia()}
-      ${habilidades()}
-      ${proyectos()}
+      ${cabecera(d)}
+      ${perfil(d)}
+      ${experiencia(d)}
+      ${habilidades(d)}
+      ${proyectos(d)}
       ${pie()}
     </article>`;
 }
@@ -73,8 +92,8 @@ export function hojaDeVidaHTML() {
  * escribe también el valor en texto, porque la otra mitad de las veces se
  * imprime en papel y ahí un enlace no es nada.
  */
-function cabecera() {
-  const canales = (CONTACT.links ?? [])
+function cabecera(d) {
+  const canales = (d.contacto.links ?? [])
     .filter((l) => tieneValor(l.value))
     .map((l) => {
       const texto = `${esc(l.label)} <span class="cv__valor">${esc(l.value)}</span>`;
@@ -86,15 +105,15 @@ function cabecera() {
 
   return `
     <header class="cv__cab">
-      <h1 class="cv__nombre">${esc(IDENTITY.name)}</h1>
-      <p class="cv__rol">${esc(IDENTITY.role)}</p>
+      <h1 class="cv__nombre">${esc(d.identidad.name)}</h1>
+      <p class="cv__rol">${esc(d.identidad.role)}</p>
       ${canales ? `<ul class="cv__canales">${canales}</ul>` : ''}
     </header>`;
 }
 
-function perfil() {
-  const parrafos = (ABOUT.body ?? []).map((p) => `<p>${esc(p)}</p>`).join('');
-  const fichas = (ABOUT.facts ?? [])
+function perfil(d) {
+  const parrafos = (d.perfil.body ?? []).map((p) => `<p>${esc(p)}</p>`).join('');
+  const fichas = (d.perfil.facts ?? [])
     .filter((f) => tieneValor(f.value))
     .map((f) => `<div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`)
     .join('');
@@ -114,9 +133,9 @@ function perfil() {
  * papel manda la otra convención, la de siempre: lo primero que se lee es
  * dónde estás ahora.
  */
-function experiencia() {
-  if (!EXPERIENCE?.length) return '';
-  const hitos = [...EXPERIENCE]
+function experiencia(d) {
+  if (!d.trayectoria?.length) return '';
+  const hitos = [...d.trayectoria]
     .reverse()
     .map(
       (e) => `
@@ -133,12 +152,12 @@ function experiencia() {
 }
 
 /** Una línea por familia, ordenada de más fuerte a menos. Ver el cabecero. */
-function habilidades() {
-  if (!SKILLS?.length) return '';
-  const familias = [...new Set(SKILLS.map((s) => s.family))];
+function habilidades(d) {
+  if (!d.habilidades?.length) return '';
+  const familias = [...new Set(d.habilidades.map((s) => s.family))];
   const filas = familias
     .map((familia) => {
-      const nombres = SKILLS.filter((s) => s.family === familia)
+      const nombres = d.habilidades.filter((s) => s.family === familia)
         .sort((a, b) => (b.level ?? 0) - (a.level ?? 0))
         .map((s) => esc(s.name))
         .join(' · ');
@@ -148,9 +167,9 @@ function habilidades() {
   return bloque('Habilidades', `<dl class="cv__habilidades">${filas}</dl>`);
 }
 
-function proyectos() {
-  if (!PROJECTS?.length) return '';
-  const fichas = PROJECTS.map((p) => {
+function proyectos(d) {
+  if (!d.proyectos?.length) return '';
+  const fichas = d.proyectos.map((p) => {
     // El estado entra en la línea de datos, como una palabra más. De
     // distintivo de color no valdría: los navegadores no imprimen los fondos,
     // así que en el PDF sería una palabra suelta sin nada alrededor.

@@ -237,36 +237,42 @@
   ],
   "trayectoria": [
     {
+      "id": "20xx-20xx-organizacion",
       "period": "20XX — 20XX",
       "role": "Puesto o etapa",
       "org": "Organización",
       "detail": "Una o dos frases sobre lo que hiciste y qué dejaste hecho."
     },
     {
+      "id": "20xx-20xx-organizacion-2",
       "period": "20XX — 20XX",
       "role": "Puesto o etapa",
       "org": "Organización",
       "detail": "Una o dos frases. Sustituye este texto."
     },
     {
+      "id": "20xx-20xx-organizacion-3",
       "period": "20XX — 20XX",
       "role": "Puesto o etapa",
       "org": "Organización",
       "detail": "Una o dos frases. Sustituye este texto."
     },
     {
+      "id": "20xx-20xx-organizacion-4",
       "period": "20XX — 20XX",
       "role": "Puesto o etapa",
       "org": "Organización",
       "detail": "Una o dos frases. Sustituye este texto."
     },
     {
+      "id": "20xx-hoy-organizacion",
       "period": "20XX — hoy",
       "role": "Puesto actual",
       "org": "Organización",
       "detail": "Una o dos frases. Sustituye este texto."
     },
     {
+      "id": "sep-2020-actualidad-tote-role-equipo-indie",
       "period": "sep. 2020 — actualidad",
       "role": "Diseño de juego y entornos 3D",
       "org": "Tote Role — equipo indie",
@@ -304,5 +310,6 @@
       }
     ],
     "endpoint": null
-  }
+  },
+  "perfiles": []
 }

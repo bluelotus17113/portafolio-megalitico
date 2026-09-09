@@ -21,7 +21,7 @@ import { oghamSVG, runaSVG } from '../utils/glifos.js';
 import { posterCanvas } from '../utils/posters.js';
 import { enviarContacto, formularioContacto } from '../ui/contacto.js';
 import { cambiarModo, haySoporteWebGL, PLENO } from '../modo.js';
-import { hojaDeVidaHTML, tituloHoja } from './HojaDeVida.js';
+import { hojaDeVidaHTML, perfilPedido, tituloHoja } from './HojaDeVida.js';
 import './ligero.css';
 import './impresion.css';
 
@@ -130,7 +130,7 @@ export class Ligero {
         </div>
       </main>
       ${this._pie()}
-      ${hojaDeVidaHTML()}
+      ${hojaDeVidaHTML(perfilPedido())}
     `;
   }
 
@@ -552,7 +552,7 @@ export class Ligero {
     // imprima con Ctrl+P se lleva el fichero bien nombrado igual.
     const previo = document.title;
     window.addEventListener('beforeprint', () => {
-      document.title = tituloHoja();
+      document.title = tituloHoja(perfilPedido());
     });
     window.addEventListener('afterprint', () => {
       document.title = previo;

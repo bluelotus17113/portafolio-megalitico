@@ -88,9 +88,24 @@ try {
     }
     return salida;
   });
-  const vacias = Object.entries(secciones).filter(([, n]) => n < 3).map(([id]) => id);
-  const distintas = new Set(Object.values(secciones)).size;
-  comprobar(vacias.length === 0, 'Las seis secciones traen campos', JSON.stringify(secciones));
+  // «Hojas de vida» es una sección de LISTA y arranca vacía: sin perfiles
+  // guardados no tiene ni un campo, y eso es correcto. Lo que hay que exigirle
+  // es el botón de añadir; los campos aparecen con la primera hoja, y de eso se
+  // encarga `perfiles-check`, que crea una y la poda.
+  const deLista = new Set(['perfiles']);
+  const vacias = Object.entries(secciones)
+    .filter(([id, n]) => n < 3 && !deLista.has(id))
+    .map(([id]) => id);
+  const distintas = new Set(
+    Object.entries(secciones).filter(([id]) => !deLista.has(id)).map(([, n]) => n)
+  ).size;
+  comprobar(vacias.length === 0, 'Cada sección de contenido trae campos', JSON.stringify(secciones));
+  const hayAlta = await page.evaluate(async () => {
+    document.querySelector('[data-seccion="perfiles"]').click();
+    await new Promise((r) => setTimeout(r, 60));
+    return Boolean(document.querySelector('[data-accion="anadir"][data-lista="perfiles"]'));
+  });
+  comprobar(hayAlta, 'Y «Hojas de vida», aunque esté vacía, deja crear una');
   // Y no son la misma seis veces, que es lo que pasaba cuando el clic dejaba
   // huérfanos los botones: seis cuentas idénticas no prueban nada.
   comprobar(distintas >= 4, 'Y cada una es distinta de las demás', `${distintas} tamaños distintos`);

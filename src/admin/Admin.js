@@ -32,6 +32,7 @@
  */
 
 import { CONTENIDO, ESTADOS } from '../content.js';
+import { idEtapa, PERFIL_COMPLETO } from '../perfiles.js';
 import { esc } from '../utils/html.js';
 import './admin.css';
 
@@ -39,6 +40,7 @@ const RUTA = '/__editor/contenido';
 
 const SECCIONES = [
   { id: 'identidad', label: 'Identidad' },
+  { id: 'perfiles', label: 'Hojas de vida' },
   { id: 'perfil', label: 'Perfil' },
   { id: 'proyectos', label: 'Proyectos' },
   { id: 'habilidades', label: 'Habilidades' },
@@ -124,6 +126,7 @@ export class Admin {
     // Los canales que HAY, no los que tienen dirección: con los cuatro de
     // ejemplo en null, el contador decía «0» y se leía como que no había nada.
     if (id === 'contacto') return String((v.links ?? []).length);
+    if (id === 'perfiles') return String((this.datos.perfiles ?? []).length + 1);
     return '';
   }
 
@@ -177,6 +180,8 @@ export class Admin {
     switch (this.seccion) {
       case 'identidad':
         return this._identidad();
+      case 'perfiles':
+        return this._perfiles();
       case 'perfil':
         return this._perfil();
       case 'proyectos':
@@ -205,6 +210,105 @@ export class Admin {
           ayuda: 'Se talla en la estela. Sólo letras latinas: el ogham no tiene cifras y lo que no sabe transcribir lo deja en blanco.',
         }),
       ]
+    );
+  }
+
+  /**
+   * Las hojas de vida a medida.
+   *
+   * Un perfil SELECCIONA sobre el contenido, no lo copia; el porqué está en
+   * `perfiles.js`. Aquí eso se traduce en una regla de interfaz: las casillas
+   * empiezan TODAS marcadas y se trabaja quitando. Adaptar un currículo a una
+   * vacante es podar lo que no viene al caso, no volver a montarlo.
+   */
+  _perfiles() {
+    const perfiles = this.datos.perfiles ?? [];
+    const bloques = perfiles
+      .map((p, i) => {
+        const marcas = (titulo, ruta, items, clave, etiqueta) => {
+          const elegidos = p[ruta];
+          const todos = !Array.isArray(elegidos);
+          const filas = items
+            .map((x, j) => {
+              const id = clave(x, j);
+              const marcado = todos || elegidos.includes(id);
+              return `
+                <label class="ad__marca">
+                  <input type="checkbox" data-perfil="${i}" data-lista="${ruta}" value="${esc(id)}"
+                         ${marcado ? 'checked' : ''} />
+                  <span>${esc(etiqueta(x))}</span>
+                </label>`;
+            })
+            .join('');
+          const cuantos = todos ? items.length : elegidos.filter((id) => items.some((x, j) => clave(x, j) === id)).length;
+          return `
+            <div class="ad__campo ad__campo--ancho">
+              <span class="ad__etiqueta">${esc(titulo)}
+                <span class="ad__cuenta">${cuantos}/${items.length}</span></span>
+              <div class="ad__marcas">${filas}</div>
+            </div>`;
+        };
+
+        return `
+          <li class="ad__item" data-lista="perfiles" data-indice="${i}">
+            <div class="ad__item-cab">
+              <span class="ad__indice">${String(i + 1).padStart(2, '0')}</span>
+              <span class="ad__resumen" data-resumen>${esc(p.nombre || 'Sin nombre')}</span>
+              <span class="ad__mandos">
+                <button type="button" data-descargar="${i}" title="Descargar su PDF">⤓</button>
+                <button type="button" data-accion="subir" data-lista="perfiles" data-indice="${i}"
+                        title="Subir" ${i === 0 ? 'disabled' : ''}>↑</button>
+                <button type="button" data-accion="bajar" data-lista="perfiles" data-indice="${i}"
+                        title="Bajar" ${i === perfiles.length - 1 ? 'disabled' : ''}>↓</button>
+                <button type="button" data-accion="borrar" data-lista="perfiles" data-indice="${i}"
+                        title="Borrar" class="ad__borrar">✕</button>
+              </span>
+            </div>
+            <div class="ad__campos">
+              ${campo({ ruta: `perfiles.${i}.nombre`, etiqueta: 'Nombre', valor: p.nombre, ancho: 'corto' })}
+              ${campo({
+                ruta: `perfiles.${i}.role`,
+                tipo: 'nulo',
+                etiqueta: 'Oficio para esta hoja',
+                valor: p.role ?? '',
+                ayuda: 'Vacío = el de Identidad.',
+              })}
+              ${campo({
+                ruta: `perfiles.${i}.enfoque`,
+                tipo: 'nulo',
+                etiqueta: 'Enfoque',
+                valor: p.enfoque ?? '',
+                ancho: 'corto',
+              })}
+              ${area({
+                ruta: `perfiles.${i}.resumen`,
+                tipo: 'parrafos',
+                etiqueta: 'Resumen para esta hoja',
+                valor: (p.resumen ?? []).join('\n\n'),
+                filas: 5,
+                ayuda: 'Vacío = el de Perfil. Una línea en blanco separa párrafos.',
+              })}
+              ${marcas('Proyectos', 'proyectos', this.datos.proyectos, (x) => x.id, (x) => x.title || x.id)}
+              ${marcas('Trayectoria', 'trayectoria', this.datos.trayectoria, idEtapa, (x) => `${x.period} · ${x.role}`)}
+              ${marcas('Habilidades', 'habilidades', this.datos.habilidades, (x) => x.name, (x) => x.name)}
+            </div>
+          </li>`;
+      })
+      .join('');
+
+    return (
+      grupo(
+        'Hojas de vida a medida',
+        'Cada perfil es una SELECCIÓN sobre el mismo contenido, no una copia: los hechos se escriben una vez y aquí sólo se elige cuáles entran, en qué orden y con qué encabezado. Así, cambiar tu correo lo cambia en todas.',
+        [
+          `<p class="ad__pista ad__campo--ancho">La hoja «${esc(PERFIL_COMPLETO.nombre)}» existe siempre y lo enseña todo; no se puede borrar. Los perfiles sólo afectan al currículo — la isla y la versión ligera siguen enseñando el portafolio entero.</p>`,
+        ]
+      ) +
+      `<section class="ad__grupo">
+        <ol class="ad__lista">${bloques}</ol>
+        <button class="ad__boton ad__boton--linea" type="button"
+                data-accion="anadir" data-lista="perfiles" data-indice="-1">Añadir una hoja</button>
+      </section>`
     );
   }
 
@@ -389,9 +493,54 @@ export class Admin {
       if (res) res.textContent = this._resumenDe(el.closest('.ad__item'));
     });
 
+    // Las marcas de un perfil. Van por `change` y no por `input` porque una
+    // casilla se marca de golpe: no hay estado intermedio que preservar, y sí
+    // hay que repintar para que el contador «3/7» diga la verdad.
+    this.caja.addEventListener('change', (e) => {
+      const marca = e.target.closest('[data-perfil][data-lista]');
+      if (!marca) return;
+      const p = this.datos.perfiles[Number(marca.dataset.perfil)];
+      const ruta = marca.dataset.lista;
+      const todos = this._todosDe(ruta);
+      // `null` significa «todos», así que en cuanto se desmarca uno hay que
+      // materializar la lista completa y quitar de ahí. Sin esto, el primer
+      // clic no haría nada visible: seguiría siendo «todos».
+      const actual = Array.isArray(p[ruta]) ? [...p[ruta]] : [...todos];
+      const i = actual.indexOf(marca.value);
+      if (marca.checked && i < 0) {
+        // Se reinserta en el ORDEN del contenido, no al final: al volver a
+        // marcar algo, lo natural es que recupere su sitio.
+        const orden = todos.indexOf(marca.value);
+        const antes = actual.filter((id) => todos.indexOf(id) < orden);
+        actual.splice(antes.length, 0, marca.value);
+      } else if (!marca.checked && i >= 0) {
+        actual.splice(i, 1);
+      }
+      // Si quedan todos y en su orden, se vuelve a `null`: un perfil que no
+      // filtra nada no debe guardar una lista de siete elementos.
+      p[ruta] = actual.length === todos.length && actual.every((id, k) => id === todos[k]) ? null : actual;
+      this._marcarSucio();
+      this._repintarHoja();
+    });
+
     this.caja.addEventListener('click', (e) => {
       const boton = e.target.closest('button');
       if (!boton) return;
+
+      if (boton.dataset.descargar !== undefined) {
+        const p = this.datos.perfiles[Number(boton.dataset.descargar)];
+        if (!p?.id) return;
+        // Se abre la ligera con ese perfil y `?imprimir`, que ya suelta el
+        // diálogo en cuanto cargan las tipografías. Sin guardar antes no
+        // serviría de nada: el PDF sale del fichero, no de este formulario.
+        if (this.sucio) {
+          this.aviso = { mal: true, texto: 'Guarda primero: el PDF sale del fichero, no de la pantalla.' };
+          this._pintarEstado();
+          return;
+        }
+        window.open(`?modo=ligero&imprimir&perfil=${encodeURIComponent(p.id)}`, `hoja-${p.id}`)?.focus();
+        return;
+      }
 
       if (boton.dataset.seccion) {
         this.seccion = boton.dataset.seccion;
@@ -438,6 +587,14 @@ export class Admin {
     });
   }
 
+  /** Los identificadores de una lista del contenido, en su orden. */
+  _todosDe(ruta) {
+    if (ruta === 'proyectos') return this.datos.proyectos.map((x) => x.id);
+    if (ruta === 'habilidades') return this.datos.habilidades.map((x) => x.name);
+    if (ruta === 'trayectoria') return this.datos.trayectoria.map(idEtapa);
+    return [];
+  }
+
   _resumenDe(item) {
     const ruta = item.dataset.lista;
     const i = Number(item.dataset.indice);
@@ -446,6 +603,7 @@ export class Admin {
     if (ruta === 'habilidades') return dato.name || 'Sin nombre';
     if (ruta === 'trayectoria') return `${dato.period || '—'} · ${dato.role || 'Sin puesto'}`;
     if (ruta === 'contacto.links') return `${dato.label}: ${dato.value || '—'}`;
+    if (ruta === 'perfiles') return dato.nombre || 'Sin nombre';
     return '';
   }
 
@@ -572,6 +730,17 @@ function estructurar(origen) {
   d.trayectoria = (d.trayectoria ?? []).map((e) => ({ period: '', role: '', org: '', detail: '', ...e }));
   d.perfil.facts = (d.perfil.facts ?? []).map((f) => ({ label: '', value: '', ...f }));
   d.contacto.links = (d.contacto.links ?? []).map((l) => ({ label: '', value: '', href: null, ...l }));
+  d.perfiles = (d.perfiles ?? []).map((p, i) => ({
+    id: p.id ?? `hoja-${i}`,
+    nombre: '',
+    role: null,
+    resumen: null,
+    enfoque: null,
+    proyectos: null,
+    habilidades: null,
+    trayectoria: null,
+    ...p,
+  }));
   return d;
 }
 
@@ -639,6 +808,19 @@ function nuevoDe(ruta, arr) {
       return { period: '', role: '', org: '', detail: '' };
     case 'contacto.links':
       return { label: '', value: '', href: null, rune: 'ansuz' };
+    case 'perfiles':
+      // Nace heredándolo TODO —los campos en null— y se poda desde ahí. Ver
+      // la nota de `perfiles.js` sobre por qué ausente no es vacío.
+      return {
+        id: `hoja-${Date.now().toString(36)}`,
+        nombre: 'Hoja nueva',
+        role: null,
+        resumen: null,
+        enfoque: null,
+        proyectos: null,
+        habilidades: null,
+        trayectoria: null,
+      };
     default:
       return { label: '', value: '' };
   }
