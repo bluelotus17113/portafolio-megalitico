@@ -16,13 +16,35 @@ import { createCairn } from '../models/Megaliths.js';
 import { createLabel } from '../vfx/Label3D.js';
 import { glyphDecal } from '../vfx/Glyphs.js';
 import { createLeyLine } from '../vfx/LeyLines.js';
+import { createIslaFlotante, islaWalkways, ISLA_RADIO } from '../models/IslaFlotante.js';
+import {
+  createEscalinataIsla,
+  escalinataCurva,
+  escalinataWalkways,
+  U_DESPEGUE,
+} from '../models/EscalinataIsla.js';
 import { RUNES, runeFor } from '../utils/runes.js';
 import { EXPERIENCE } from '../content.js';
 import { PALETTE, SEED } from '../config.js';
 import { damp, makeRandom } from '../utils/noise.js';
 
-const PATH_LENGTH = 42;
+// El largo del recorrido lo manda ahora `escalinataCurva`; aquí sólo queda el
+// ancho, que es lo que separa los mojones del borde de los peldaños.
 const PATH_WIDTH = 3.2;
+
+/** Cuánto vuela la cubierta de la isla sobre el prado del final del camino. */
+const ISLA_VUELO = 21;
+
+/**
+ * Desplazamiento de la isla más allá del final del tramo de tierra.
+ *
+ * Lo manda la PENDIENTE de la escalinata, no el gusto. Con la isla a seis
+ * metros del prado había que subir veintiún metros en seis de avance: una
+ * escalera de setenta grados, que no es una escalera. A esta distancia el vuelo
+ * sale sobre los treinta y cinco grados, que es lo que mide una escalera de
+ * verdad.
+ */
+const ISLA_AVANCE = ISLA_RADIO + 24;
 
 /**
  * Trazado del sendero, en coordenadas LOCALES del santuario.
@@ -38,12 +60,19 @@ const PATH_WIDTH = 3.2;
  * entre las losas.
  */
 export function travellerCurve() {
-  const controls = [];
-  for (let i = 0; i <= 6; i++) {
-    const t = i / 6;
-    controls.push(new THREE.Vector2(Math.sin(t * Math.PI * 1.15) * 11 - 1, 8 + t * PATH_LENGTH));
-  }
-  return new THREE.SplineCurve(controls);
+  // Delega en la de la escalinata y no duplica los puntos.
+  //
+  // Tenerlos dos veces parecía inocente y no lo era: `SplineCurve` interpola
+  // por Catmull-Rom, así que añadir los cuatro puntos del vuelo CAMBIA la curva
+  // en el tramo de tierra que comparten —la tangente del último punto ya no es
+  // la misma— y el veto del arbolado y los mojones se habrían quedado unos
+  // metros al lado de los peldaños que dicen proteger.
+  return escalinataCurva(ISLA_AVANCE);
+}
+
+/** El final del tramo que pisa tierra, en local. */
+export function finDeTierra() {
+  return escalinataCurva(ISLA_AVANCE).getPoint(U_DESPEGUE);
 }
 
 /**
@@ -62,6 +91,8 @@ export function travellerKeepOut(def, { radius = 4.6, samples = 40 } = {}) {
   const sin = Math.sin(def.facing);
   const zonas = [];
   for (let i = 0; i <= samples; i++) {
+    // Todo el recorrido, vuelo incluido: bajo los peldaños que van por el aire
+    // tampoco puede crecer un roble que los tape desde abajo.
     const p = curve.getPoint(i / samples);
     zonas.push({
       x: def.anchor[0] + cos * p.x + sin * p.y,
@@ -70,6 +101,34 @@ export function travellerKeepOut(def, { radius = 4.6, samples = 40 } = {}) {
     });
   }
   return zonas;
+}
+
+/**
+ * El claro bajo la isla.
+ *
+ * Los árboles se plantan sobre el terreno y la isla vuela veintiún metros por
+ * encima, así que sobre el papel no se estorban. En pantalla sí: un carballo de
+ * quince metros justo debajo se mete entre la cámara y la isla y la parte por
+ * la mitad, y desde el suelo tapa entera la única pieza del portafolio que está
+ * en el aire.
+ *
+ * Dejar el claro hace además que la isla se lea como lo que es. Una sombra
+ * redonda sobre la hierba vacía dice «hay algo ahí arriba» mejor que la isla
+ * misma.
+ */
+export function islaKeepOut(def, { radius = ISLA_RADIO + 4 } = {}) {
+  const p = finDeTierra();
+  const cos = Math.cos(def.facing);
+  const sin = Math.sin(def.facing);
+  const lx = p.x;
+  const lz = p.y + ISLA_AVANCE;
+  return [
+    {
+      x: def.anchor[0] + cos * lx + sin * lz,
+      z: def.anchor[2] - sin * lx + cos * lz,
+      radius,
+    },
+  ];
 }
 
 export class ExperienceShrine extends Shrine {
@@ -92,68 +151,23 @@ export class ExperienceShrine extends Shrine {
     const curve2d = travellerCurve();
     this.pathCurve = curve2d;
 
-    // Losas del sendero, siguiendo el terreno.
+    // ---- La escalinata ----------------------------------------------------
     //
-    // Instanciadas, no sueltas. Son 354 losas que comparten siete geometrías y
-    // un material, y como mallas independientes eran 354 llamadas de dibujo por
-    // fotograma —con el bordillo, la mitad del coste de CPU de toda la isla—
-    // sin que ninguna sea una pieza con identidad: el sendero es una cinta.
-    // Instanciadas por geometría son siete llamadas.
-    //
-    // El azar se consume en EL MISMO ORDEN que antes (desplazamiento, giro,
-    // escala, losa a losa). Esa es la única condición para que el camino salga
-    // colocado exactamente donde estaba: aquí el mundo no está guardado, está
-    // calculado, y cualquier número de más o de menos lo mueve entero.
-    const slabCount = 118;
-    const slabMat = rockMaterial();
-    const slabGeos = [];
-    for (let i = 0; i < 7; i++) {
-      slabGeos.push(createSlab({ width: 1.5, height: 0.34, depth: 1.15, seed: SEED + 2000 + i, erosion: 0.09 }));
-    }
-    const slabLotes = slabGeos.map(() => []);
-    for (let i = 0; i < slabCount; i++) {
-      const t = i / (slabCount - 1);
-      const p = curve2d.getPoint(t);
-      const tangent = curve2d.getTangent(t);
-      const angle = Math.atan2(tangent.x, tangent.y);
-      // Dos o tres losas por travesaño, con junta irregular.
-      const lanes = 3;
-      for (let l = 0; l < lanes; l++) {
-        const offset = (l - (lanes - 1) / 2) * (PATH_WIDTH / lanes) + (random() - 0.5) * 0.22;
-        const lx = p.x + Math.cos(angle) * offset;
-        const lz = p.y - Math.sin(angle) * offset;
-        slabLotes[(i * 3 + l) % slabGeos.length].push({
-          posicion: new THREE.Vector3(lx, this.groundAt(lx, lz) - 0.14, lz),
-          giro: new THREE.Euler(0, angle + (random() - 0.5) * 0.25, 0),
-          escala: new THREE.Vector3(1, 0.85 + random() * 0.4, 1),
-        });
-      }
-    }
-    this._sembrarInstanciado(slabLotes, slabGeos, slabMat, 'sendero-losas', { sombra: false });
-
-    // Bordillo de cantos a los lados del sendero.
-    const kerbMat = rockMaterial({ dark: true });
-    const kerbGeos = [];
-    for (let i = 0; i < 5; i++) kerbGeos.push(createBoulder({ radius: 0.42, seed: SEED + 2100 + i, detail: 1 }));
-    const kerbLotes = kerbGeos.map(() => []);
-    for (let i = 0; i < 70; i++) {
-      const t = i / 69;
-      const p = curve2d.getPoint(t);
-      const tangent = curve2d.getTangent(t);
-      const angle = Math.atan2(tangent.x, tangent.y);
-      for (const side of [-1, 1]) {
-        if (random() < 0.28) continue;
-        const offset = side * (PATH_WIDTH / 2 + 0.55 + random() * 0.35);
-        const lx = p.x + Math.cos(angle) * offset;
-        const lz = p.y - Math.sin(angle) * offset;
-        kerbLotes[i % kerbGeos.length].push({
-          posicion: new THREE.Vector3(lx, this.groundAt(lx, lz) - 0.1, lz),
-          giro: new THREE.Euler(random() * 0.3, random() * Math.PI, random() * 0.3),
-          escala: new THREE.Vector3().setScalar(0.6 + random() * 0.55),
-        });
-      }
-    }
-    this._sembrarInstanciado(kerbLotes, kerbGeos, kerbMat, 'sendero-cantos', { sombra: true, colisiona: true });
+    // Antes esto eran 354 losas instanciadas siguiendo el terreno. Se van con
+    // el sendero: lo que sube ahora es una escalinata de peldaños de altura
+    // constante que, pasado el último mojón, se despega del suelo y trepa hasta
+    // la cubierta de la isla. La geometría y el porqué, en `EscalinataIsla.js`.
+    const finTierra = curve2d.getPoint(U_DESPEGUE);
+    const cotaCubierta = this.groundAt(finTierra.x, finTierra.y) + ISLA_VUELO;
+    const { grupo: escalinata, plan: planEscalinata } = createEscalinataIsla({
+      groundAt: (x, z) => this.groundAt(x, z),
+      alturaCubierta: cotaCubierta,
+      avanceIsla: ISLA_AVANCE,
+      seed: SEED + 2600,
+    });
+    this.group.add(escalinata);
+    this.escalinata = escalinata;
+    this.planEscalinata = planEscalinata;
 
     // ---- Mojones ----------------------------------------------------------
     this.milestones = [];
@@ -161,7 +175,9 @@ export class ExperienceShrine extends Shrine {
 
     EXPERIENCE.forEach((entry, i) => {
       // Se reparten por el tramo útil del camino, dejando aire al principio.
-      const t = n === 1 ? 0.5 : 0.12 + (i / (n - 1)) * 0.82;
+      // Repartidos por el tramo de tierra, no por toda la curva: con el vuelo
+      // dentro, el mojón de la etapa actual se plantaba en el aire.
+      const t = (n === 1 ? 0.5 : 0.12 + (i / (n - 1)) * 0.82) * U_DESPEGUE;
       const p = curve2d.getPoint(t);
       const tangent = curve2d.getTangent(t);
       const angle = Math.atan2(tangent.x, tangent.y);
@@ -275,34 +291,57 @@ export class ExperienceShrine extends Shrine {
       });
     });
 
-    // ---- Veta de energía por el eje del sendero --------------------------
-    // Se construye en coordenadas de mundo porque sigue el terreno real.
-    const start = curve2d.getPoint(0);
-    const end = curve2d.getPoint(1);
-    const startW = this.localToWorldXZ(start.x, start.y);
-    const endW = this.localToWorldXZ(end.x, end.y);
-    this.trailLine = createLeyLine(
-      this.field,
-      new THREE.Vector3(startW.x, 0, startW.z),
-      new THREE.Vector3(endW.x, 0, endW.z),
-      {
-        color: PALETTE.lichen,
-        width: 0.20,
-        intensity: 0.5,
-        speed: 0.10,
-        arc: 0.10,
-        samples: 110,
-        lift: 0.22,
-      }
-    );
-    // Va en mundo: se cuelga fuera del grupo del santuario.
-    this.detached = [this.trailLine];
+    // ---- La veta de luz, por el eje de la escalinata ----------------------
+    //
+    // Antes se construía en mundo porque seguía el terreno real. Ya no puede:
+    // la mitad de la escalinata va por el aire, y una veta pegada al campo de
+    // alturas se quedaría en el prado mientras los peldaños se van al cielo.
+    //
+    // Se traza sobre los peldaños ya calculados —el mismo perfil, un palmo por
+    // encima de la huella— y vive DENTRO del grupo del santuario, en local, que
+    // es donde vive la escalinata. Colgarla de `detached` la habría dejado en
+    // coordenadas de mundo, girada respecto a lo que quiere iluminar.
+    const veta = planEscalinata.peldanos.map((e) => new THREE.Vector3(e.x, e.y + 0.16, e.z));
+    this.trailLine = createLeyLine(null, null, null, {
+      color: PALETTE.arcane,
+      width: 0.5,
+      intensity: 0.85,
+      speed: 0.13,
+      points: veta,
+    });
+    this.group.add(this.trailLine);
+
+    // Y dos hilos por los bordes, más finos y más apagados.
+    //
+    // Con la veta central sola, de frente la escalinata era una cinta de piedra
+    // con una raya en medio; el dibujo de la referencia es la ESCALERA la que
+    // brilla, no una línea pintada encima. Los bordes son los que dan el canto
+    // de luz que la recorta contra el cielo en el tramo volado.
+    this.trailEdges = [];
+    for (const lado of [-1, 1]) {
+      const hilo = planEscalinata.peldanos.map((e, i) => {
+        const sig = planEscalinata.peldanos[Math.min(i + 1, planEscalinata.peldanos.length - 1)];
+        const dx = sig.x - e.x;
+        const dz = sig.z - e.z;
+        const l = Math.hypot(dx, dz) || 1;
+        return new THREE.Vector3(e.x + (dz / l) * lado * 2.0, e.y + 0.1, e.z - (dx / l) * lado * 2.0);
+      });
+      const linea = createLeyLine(null, null, null, {
+        color: PALETTE.arcane,
+        width: 0.24,
+        intensity: 0.45,
+        speed: 0.1,
+        points: hilo,
+      });
+      this.group.add(linea);
+      this.trailEdges.push(linea);
+    }
 
     // Portal de salida en lo alto del camino: el presente.
     const crown = stoneMesh(
       createStone({ width: 2.6, height: 8.5, depth: 1.5, seed: SEED + 2400, detail: 4, roundness: 0.32, erosion: 0.10, taper: 0.12 })
     );
-    const crownP = curve2d.getPoint(1);
+    const crownP = curve2d.getPoint(U_DESPEGUE);
     crown.position.set(crownP.x, this.groundAt(crownP.x, crownP.y), crownP.y + 3.5);
     this.group.add(crown);
 
@@ -319,10 +358,26 @@ export class ExperienceShrine extends Shrine {
     this.group.add(crownGlyph);
     this.crownGlyph = crownGlyph;
 
+    // ---- La isla flotante: adónde lleva el camino -------------------------
+    //
+    // El sendero subía 11 m y se acababa en el prado. La isla es su destino, y
+    // va DETRÁS del menhir del presente y por encima: se ve desde abajo durante
+    // todo el ascenso, que es la mitad de lo que hace que se quiera subir.
+    //
+    // No es terreno y no puede serlo —el campo de alturas guarda una elevación
+    // por (x, z)— así que es un modelo suelto. Ver la nota de `IslaFlotante.js`.
+    const isla = createIslaFlotante({ base: cotaCubierta });
+    isla.position.x = finTierra.x;
+    isla.position.z = finTierra.y + ISLA_AVANCE;
+    this.group.add(isla);
+    this.isla = isla;
+    this.islaLocal = { x: isla.position.x, z: isla.position.z };
+    this.cotaCubierta = cotaCubierta;
+
     // La cámara enfoca el primer tercio: desde ahí el sendero se ve
     // alejarse y subir, que es lo que cuenta la sección. Enfocando el punto
     // medio, el estrado de arranque se quedaba fuera de cuadro.
-    const focus = curve2d.getPoint(0.52);
+    const focus = curve2d.getPoint(0.52 * U_DESPEGUE);
     this.focusOffset.set(focus.x, this.groundAt(focus.x, focus.y) + 5, focus.y);
     return this;
   }
@@ -371,11 +426,30 @@ export class ExperienceShrine extends Shrine {
    * @param {number} samples
    * @returns {Array<{x: number, z: number}>}
    */
+  /**
+   * Lo que se puede pisar de esta sección, en coordenadas de MUNDO.
+   *
+   * Va aquí y no en el mundo porque el trazado lo calcula el santuario, y va en
+   * mundo porque el campo de alturas no sabe de santuarios.
+   */
+  walkways() {
+    if (!this.planEscalinata) return [];
+    const aMundo = (x, z) => this.localToWorldXZ(x, z);
+    // `localToWorldXZ` sólo convierte la planta; la altura la lleva el propio
+    // grupo, y hay que sumarla a mano o las pasarelas quedan bajo tierra.
+    const dy = this.group.position.y;
+    const centro = aMundo(this.islaLocal.x, this.islaLocal.z);
+    return [
+      ...escalinataWalkways(this.planEscalinata, aMundo, { dy }),
+      ...islaWalkways(centro, this.cotaCubierta + dy),
+    ];
+  }
+
   pathWorldPoints(samples = 24) {
     if (!this.pathCurve) return [];
     const points = [];
     for (let i = 0; i <= samples; i++) {
-      const p = this.pathCurve.getPoint(i / samples);
+      const p = this.pathCurve.getPoint((i / samples) * U_DESPEGUE);
       points.push(this.localToWorldXZ(p.x, p.y));
     }
     return points;
@@ -395,6 +469,7 @@ export class ExperienceShrine extends Shrine {
       );
     }
     if (this.trailLine) this.trailLine.userData.uniforms.uActive.value = 0.35 + activation * 0.9;
+    for (const l of this.trailEdges ?? []) l.userData.uniforms.uActive.value = 0.22 + activation * 0.6;
     if (this.crownGlyph) this.crownGlyph.userData.glyph.uIntensity.value = 0.72 + activation * 0.5;
   }
 }

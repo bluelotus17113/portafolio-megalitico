@@ -27,6 +27,7 @@ import {
   atalayaWalkways,
   createAtalaya,
   prenderVelas,
+
 } from '../models/Atalaya.js';
 import { ESTACIONES } from './Estaciones.js';
 import { createDais } from '../models/Dais.js';
@@ -35,7 +36,8 @@ import { createStone, createBoulder, stoneMesh, rockMaterial } from '../models/S
 import { AboutShrine } from '../sections/About.js';
 import { ProjectsShrine } from '../sections/Projects.js';
 import { SkillsShrine } from '../sections/Skills.js';
-import { ExperienceShrine, travellerKeepOut } from '../sections/Experience.js';
+import { ExperienceShrine, islaKeepOut, travellerKeepOut } from '../sections/Experience.js';
+import { prenderFuente } from '../models/IslaFlotante.js';
 import { ContactShrine } from '../sections/Contact.js';
 import {
   createSouterrain,
@@ -688,6 +690,17 @@ export class World {
     const shrine = new Klass({ def, field: this.field }).build();
     this.scene.add(shrine.group);
     for (const extra of shrine.detached ?? []) this.scene.add(extra);
+
+    // Lo que el santuario deja pisable.
+    //
+    // Se registra AQUÍ y no en el bloque de pasarelas de arriba porque el
+    // trazado no existe hasta que el santuario se construye, cuatro etapas más
+    // tarde. Da igual para el andar —las pasarelas no tocan la malla, sólo la
+    // cota bajo los pies— y es lo que permite que la escalinata del Camino del
+    // Viajero se calcule sola en vez de tener sus números repetidos en el mundo.
+    for (const w of shrine.walkways?.() ?? []) {
+      this.field.addWalkway(w.ax, w.az, w.bx, w.bz, w);
+    }
     this.shrines.push(shrine);
     for (const h of shrine.hotspots) this.hotspotObjects.push(h.object);
     return shrine;
@@ -778,12 +791,19 @@ export class World {
     const dense = this.quality === 'high';
     this.forest = new Forest(this.field, {
       pathPoints: experience?.pathWorldPoints(28) ?? [],
+      // El claro bajo la isla flotante va en la lista del ARBOLADO y no en
+      // `paveKeepOut`: esa solo la consulta el matorral, así que puesto allí
+      // seguían plantándose robles debajo de la isla y tapándola.
       keepOut: forestKeepOut({
         padRadius: PAD_RADIUS,
         homeView: HOME_VIEW.position,
         shrines: this.shrines,
         corridors: [
           ...travellerKeepOut(SECTIONS.find((d) => d.id === 'experience'), { radius: 10 }),
+          // El claro bajo la isla flotante. Un roble de quince metros plantado
+          // debajo se mete entre la cámara y la única pieza del portafolio que
+          // está en el aire, y desde el suelo la tapa entera.
+          ...islaKeepOut(SECTIONS.find((d) => d.id === 'experience')),
           ...souterrainKeepOut().map((z) => ({ ...z, radius: z.radius + 5 })),
           // La escalinata necesita MÁS holgura que la que la protege de que le
           // brote hierba encima. El veto de enlosado deja el árbol a cuatro
@@ -1043,6 +1063,11 @@ export class World {
     // Samhain.
     if (this.atalaya && this.time) {
       prenderVelas(this.atalaya, this.time.value.noche ?? 0);
+    }
+    if (this.time) {
+      // Y el manantial de la isla flotante, por lo mismo que las velas.
+      const exp = Object.values(this.shrines || {}).find((sh) => sh?.isla);
+      if (exp) prenderFuente(exp.isla, this.time.value.noche ?? 0);
     }
 
     if (this.espiritus) {

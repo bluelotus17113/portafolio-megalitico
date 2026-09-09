@@ -49,6 +49,11 @@ const SIN_CUERPO = [
   // pendiente mirándolo — de hecho el terreno daba permiso en las ocho
   // direcciones.
   /^escalinata-(escalones|entrega)/,
+  // La del Camino del Viajero, por lo mismo. Hoy se libra por tamaño —una cinta
+  // de cuarenta y cuatro metros no pasa el filtro de compacidad— pero eso es un
+  // accidente de sus dimensiones, no una decisión: dicho aquí, sigue siendo
+  // suelo aunque mañana se parta en tramos.
+  /^escalinata-isla/,
   // NINGÚN muro es colisionador, y no por descuido.
   //
   // Un murete flanquea un paso; lo que define por dónde se anda es el paso, no
