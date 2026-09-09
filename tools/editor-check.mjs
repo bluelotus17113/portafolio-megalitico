@@ -108,6 +108,83 @@ try {
   comprobar(Boolean(anotacion), 'la anulación está en src/editor/escena.json');
   comprobar(Array.isArray(anotacion?.pos0), 'guarda la posición de origen para detectar derivas');
 
+  // ---- 3b. El panel de cambios ------------------------------------------
+  //
+  // Existe por un fallo real: la losa de entrega de la escalinata pasó meses
+  // treinta metros bajo tierra por un arrastre accidental guardado. La
+  // geometría era correcta y era su malla la que llevaba `position.y = −30,32`,
+  // sin que eso estuviera en ningún fichero fuente. Desde dentro del editor no
+  // había forma de VER qué estaba anulado, así que nadie volvió a mirarlo.
+  console.log('── el panel de cambios');
+  const cambios = await page.evaluate(async (id) => {
+    const e = window.__portfolio.editor;
+    const leer = () =>
+      [...document.querySelectorAll('.ed__cambio')].map((f) => ({
+        texto: f.querySelector('.ed__cambio-ir')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+        aviso: f.dataset.aviso === 'true',
+      }));
+
+    const conElMovimiento = leer();
+
+    // Se parte de cero antes de medir los umbrales.
+    //
+    // La primera versión daba por «normal» el traslado de 5,39 m que hace la
+    // prueba de más arriba, y fallaba: esta pieza ya traía 3,62 m guardados en
+    // `escena.json`, así que el total contra su origen eran 8,12 y la marca
+    // saltaba — con razón. Lo que se mide es el desplazamiento ACUMULADO desde
+    // donde nació, no el del último arrastre, y una prueba de umbrales tiene
+    // que controlar el punto de partida.
+    const pieza = e.seleccionar(id);
+    const p0 = pieza.pos0;
+    e.restablecer(id);
+    e.seleccionar(id);
+    e.aplicar({ pos: [p0[0] + 2, p0[1], p0[2]] });
+    await new Promise((r) => setTimeout(r, 60));
+    const conUnTrasladoNormal = leer();
+
+    e.aplicar({ pos: [p0[0], p0[1] - 30, p0[2]] });
+    await new Promise((r) => setTimeout(r, 60));
+    const conElDesplome = leer();
+
+    // Y deshacer desde la lista devuelve la pieza EN EL SITIO, sin recargar.
+    document.querySelectorAll('.ed__cambio-deshacer').forEach((b) => {
+      const fila = b.closest('.ed__cambio');
+      if (fila.querySelector('.ed__cambio-ir').textContent.includes(id.split('/').pop())) b.click();
+    });
+    await new Promise((r) => setTimeout(r, 60));
+    return {
+      conElMovimiento,
+      conUnTrasladoNormal,
+      conElDesplome,
+      trasDeshacer: leer(),
+      posicionTrasDeshacer: pieza.objeto.position.toArray(),
+      nacio: p0,
+    };
+  }, PIEZA);
+
+  const nombreCorto = PIEZA.split('/').pop();
+  comprobar(
+    cambios.conElMovimiento.some((f) => f.texto.includes(nombreCorto)),
+    'la pieza movida aparece en la lista de cambios'
+  );
+  const normal = cambios.conUnTrasladoNormal.find((f) => f.texto.includes(nombreCorto));
+  comprobar(
+    Boolean(normal) && !normal.aviso,
+    'un traslado de 2 m no se marca como sospechoso',
+    normal?.texto ?? 'no aparece'
+  );
+  const desplomada = cambios.conElDesplome.find((f) => f.texto.includes(nombreCorto));
+  comprobar(Boolean(desplomada?.aviso), 'un desplome de 30 m sí se marca', desplomada?.texto ?? '');
+  comprobar(
+    !cambios.trasDeshacer.some((f) => f.texto.includes(nombreCorto)),
+    'deshacer desde la lista quita la anulación'
+  );
+  comprobar(
+    cambios.posicionTrasDeshacer.every((v, i) => Math.abs(v - cambios.nacio[i]) < 1e-4),
+    'y devuelve la pieza a su sitio SIN recargar',
+    `${cambios.posicionTrasDeshacer.map((v) => v.toFixed(2))}`
+  );
+
   // ---- 4. Textura de fichero -------------------------------------------
   console.log('── textura de fichero');
   const textura = await page.evaluate(async () => {

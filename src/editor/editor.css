@@ -216,3 +216,81 @@
   font-size: 11px;
   padding: 4px 0;
 }
+
+/* ── Cambios guardados ───────────────────────────────────────────────────
+ *
+ * La lista de lo que está anulado. Va ARRIBA, justo debajo de las piezas y por
+ * encima de la transformación, porque es lo primero que hay que poder mirar al
+ * abrir el editor: qué se tocó a mano la última vez. Escondida al final no
+ * habría servido para nada — el fallo que la motiva llevaba meses ahí.
+ */
+.ed__lista--cambios {
+  max-height: 168px;
+}
+
+.ed__cuenta {
+  float: right;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-variant-numeric: tabular-nums;
+}
+
+.ed__cambio {
+  display: grid;
+  grid-template-columns: 1fr 26px;
+  gap: 2px;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ed__cambio-ir {
+  display: block;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed__cambio-ir:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ed__cambio-ir:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.ed__cambio-ir span {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.62;
+}
+
+/* El aviso no se apoya SÓLO en el color: lleva su «¿seguro?» escrito al lado.
+   Un ámbar sobre gris oscuro es justo el par que peor distingue quien no
+   separa esos tonos, y esto marca precisamente lo que hay que revisar. */
+.ed__cambio[data-aviso='true'] .ed__cambio-ir {
+  color: #ffb072;
+}
+
+.ed__cambio-deshacer {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.ed__cambio-deshacer:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}

@@ -211,6 +211,7 @@ export class Editor {
       iguales(estado.esc.map(redondear), pieza.esc0)
     ) {
       anotarPieza(estado.id, null);
+    this.panel.refrescarCambios();
       this.marcarSucio();
       return;
     }
@@ -225,6 +226,7 @@ export class Editor {
       // que mover la pieza equivocada en silencio.
       pos0: pieza.pos0,
     });
+    this.panel.refrescarCambios();
     this.marcarSucio();
   }
 
@@ -241,12 +243,32 @@ export class Editor {
     this.aplicar({ pos: local.toArray() });
   }
 
-  restablecer() {
-    const pieza = this.seleccion;
+  /**
+   * Devuelve una pieza a como nació, EN EL SITIO.
+   *
+   * Antes sólo borraba la anulación y avisaba de que se vería al recargar. Eso
+   * convierte deshacer un error en un acto de fe: se pulsa, no pasa nada
+   * visible, y hay que recargar la isla entera —doce etapas de construcción—
+   * para comprobar si sirvió. El catálogo ya guarda `pos0`, `rot0` y `esc0`
+   * justo para esto, así que la pieza vuelve a su sitio en el mismo fotograma.
+   *
+   * @param {string} [ruta] Cuál. Sin argumento, la seleccionada.
+   */
+  restablecer(ruta = null) {
+    const pieza = ruta ? piezaPorId(ruta) : this.seleccion;
     if (!pieza) return;
+    // Se apila antes de tocar nada: restablecer también se deshace.
+    if (pieza === this.seleccion) this.pila.push({ antes: this._instantanea() });
+    pieza.objeto.position.fromArray(pieza.pos0);
+    pieza.objeto.rotation.fromArray(pieza.rot0);
+    pieza.objeto.scale.fromArray(pieza.esc0);
+    pieza.objeto.visible = true;
+    pieza.objeto.updateMatrixWorld(true);
     anotarPieza(pieza.ruta, null);
+    if (pieza === this.seleccion) this.panel.refrescarTransformacion();
     this.marcarSucio();
-    this.panel.avisar('Se aplica al recargar: la pieza vuelve a lo que calcule la semilla.');
+    this.panel.refrescarCambios();
+    this.panel.avisar(`«${pieza.ruta}» ha vuelto a donde la puso la semilla.`);
   }
 
   deshacer() {

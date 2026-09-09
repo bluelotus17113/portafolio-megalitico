@@ -35,7 +35,9 @@
  */
 
 import * as THREE from 'three';
-import escenaGuardada from './escena.json';
+// Con el atributo, igual que `content.js`: sin él Node se niega a importar un
+// JSON en ESM y este módulo deja de poder cargarse desde las herramientas.
+import escenaGuardada from './escena.json' with { type: 'json' };
 
 /**
  * Familias que no se editan pieza a pieza.

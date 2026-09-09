@@ -99,6 +99,9 @@ export class Admin {
             <button class="ad__enlace" type="button" data-ver="ligero">Ver la versión ligera ↗</button>
             <button class="ad__enlace" type="button" data-ver="hoja">Ver la hoja de vida ↗</button>
             <button class="ad__enlace" type="button" data-ver="3d">Ver la isla ↗</button>
+            <button class="ad__enlace ad__enlace--editor" type="button" data-ver="editor">
+              Editar la escena ↗
+            </button>
           </div>
         </nav>
         <main class="ad__hoja" data-hoja>${this._seccion()}</main>
@@ -486,9 +489,22 @@ export class Admin {
     // `?imprimir` abre la versión ligera y suelta el diálogo de impresión en
     // cuanto están las tipografías. Vale también como enlace público: es una
     // dirección que lleva directo al PDF de la hoja de vida.
-    const url =
-      cual === '3d' ? '?modo=3d' : cual === 'hoja' ? '?modo=ligero&imprimir' : '?modo=ligero';
-    const ventana = window.open(url, 'portafolio-previsualizacion');
+    const rutas = {
+      '3d': '?modo=3d',
+      hoja: '?modo=ligero&imprimir',
+      // El editor de escena. Es el hermano de este panel —los dos escriben en
+      // el proyecto a través del mismo plugin de Vite, los dos sólo existen en
+      // desarrollo— y hasta ahora había que saberse la dirección de memoria.
+      // Aquí se editan los textos; ahí, dónde está cada piedra.
+      editor: '?modo=3d&editor',
+    };
+    // El editor en su propia ventana y no en la de previsualización: mover
+    // piedras es una sesión larga, y perderla porque se pulsó «Ver la isla»
+    // encima sería el peor momento posible para reutilizar una pestaña.
+    const ventana = window.open(
+      rutas[cual] ?? '?modo=ligero',
+      cual === 'editor' ? 'portafolio-editor' : 'portafolio-previsualizacion'
+    );
     ventana?.focus();
   }
 

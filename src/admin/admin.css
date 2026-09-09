@@ -202,6 +202,15 @@ body.admin-activo {
   color: var(--arcane);
 }
 
+/* El editor se separa de las previsualizaciones con una línea: los tres de
+   arriba sólo MIRAN el portafolio, y éste lo modifica. Es otra clase de acción
+   y conviene que no se pulse por inercia. */
+.ad__enlace--editor {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
 .ad__hoja {
   max-width: 1080px;
   padding: 26px 30px 90px;

@@ -20,6 +20,7 @@ import {
   anotarMaterial,
   estadoEscena,
   listaMateriales,
+  piezaPorId,
 } from './registro.js';
 
 const EJES = ['x', 'y', 'z'];
@@ -39,6 +40,13 @@ export function crearPanel(editor) {
         <p class="ed__rotulo">Piezas</p>
         <input class="ed__buscar" type="text" placeholder="Filtrar por nombre…" data-buscar>
         <div class="ed__lista" data-lista></div>
+      </section>
+
+      <section class="ed__seccion" data-cambios-seccion>
+        <p class="ed__rotulo">
+          Cambios guardados <span class="ed__cuenta" data-cambios-cuenta>0</span>
+        </p>
+        <div class="ed__lista ed__lista--cambios" data-cambios></div>
       </section>
 
       <section class="ed__seccion" data-transformacion hidden>
@@ -158,6 +166,123 @@ export function crearPanel(editor) {
   }
 
   buscar.addEventListener('input', pintarLista);
+
+  // ------------------------------------------------------------------ cambios
+
+  /*
+   * Qué hay anulado ahora mismo, y cuánto.
+   *
+   * El editor guarda las piezas movidas en `escena.json`, y esas anulaciones se
+   * aplican también en la web publicada. Hasta aquí, deliberado. Lo que faltaba
+   * era poder VERLAS: desde dentro del editor no había forma de saber qué se
+   * había tocado, así que un arrastre accidental se guardaba igual que uno
+   * pensado y no volvía a mirarse nunca.
+   *
+   * No es hipotético. Este panel nace de encontrar, meses después, la losa de
+   * entrega de la escalinata treinta metros bajo tierra: su geometría era
+   * correcta y era su malla la que llevaba `position.y = −30,32`, sin que eso
+   * estuviera escrito en ningún fichero fuente. Con él, esa entrada habría
+   * estado siempre a la vista y marcada.
+   */
+  const cambios = $('[data-cambios]');
+  const cuentaCambios = $('[data-cambios-cuenta]');
+
+  /*
+   * Cuándo una anulación parece un accidente.
+   *
+   * Los números salen de medir los dos casos, no de elegir uno redondo. En la
+   * limpieza que dio origen a esto había cuatro accidentes —30,32 m en vertical
+   * y 19,16 m en horizontal los peores— y un ajuste deliberado de 3,62 m. Ocho
+   * metros cae en medio con holgura por los dos lados.
+   *
+   * El giro no marca: girar una piedra a mano es una edición normal, y el único
+   * giro accidental que apareció era de 4°, que ningún umbral separa de uno
+   * pensado.
+   */
+  const LIMITE_MUEVE = 8;
+  const LIMITE_CAIDA = -3;
+
+  function refrescarCambios() {
+    const objetos = estadoEscena().objetos ?? {};
+    const materiales = estadoEscena().materiales ?? {};
+    const ids = Object.keys(objetos);
+    cuentaCambios.textContent = String(ids.length + Object.keys(materiales).length);
+    cambios.innerHTML = '';
+
+    if (!ids.length && !Object.keys(materiales).length) {
+      cambios.innerHTML = '<p class="ed__vacio" style="padding:8px">Nada tocado a mano.</p>';
+      return;
+    }
+
+    for (const id of ids) {
+      const pieza = piezaPorId(id);
+      const fila = document.createElement('div');
+      fila.className = 'ed__cambio';
+
+      if (!pieza) {
+        // Una anulación cuyo identificador ya no existe no se aplica y no avisa
+        // de nada: queda ahí como ruido. Verla es la mitad de poder quitarla.
+        fila.dataset.aviso = 'true';
+        fila.innerHTML = `<button class="ed__cambio-ir" type="button" disabled>${id}
+          <span>la pieza ya no existe</span></button>`;
+        cambios.appendChild(fila);
+        continue;
+      }
+
+      const o = pieza.objeto;
+      const dxyz = [0, 1, 2].map((i) => o.position.toArray()[i] - pieza.pos0[i]);
+      const mueve = Math.hypot(...dxyz);
+      const gira =
+        Math.max(
+          ...[0, 1, 2].map((i) =>
+            Math.abs([o.rotation.x, o.rotation.y, o.rotation.z][i] - pieza.rot0[i])
+          )
+        ) *
+        (180 / Math.PI);
+      const escala = Math.hypot(...[0, 1, 2].map((i) => o.scale.toArray()[i] - pieza.esc0[i]));
+      const sospechosa = mueve > LIMITE_MUEVE || dxyz[1] < LIMITE_CAIDA;
+
+      const partes = [];
+      if (mueve >= 0.01) partes.push(`${mueve.toFixed(2)} m`);
+      if (Math.abs(dxyz[1]) >= 0.01) partes.push(`${dxyz[1] > 0 ? '↑' : '↓'} ${Math.abs(dxyz[1]).toFixed(2)}`);
+      if (gira >= 0.1) partes.push(`${gira.toFixed(0)}°`);
+      if (escala >= 0.005) partes.push('escalada');
+      if (!o.visible) partes.push('oculta');
+      if (!partes.length) partes.push('sin cambio');
+
+      const corte = id.lastIndexOf('/');
+      fila.dataset.aviso = String(sospechosa);
+      fila.innerHTML = `
+        <button class="ed__cambio-ir" type="button" title="Ir a la pieza">
+          ${corte > 0 ? id.slice(corte + 1) : id}
+          <span>${partes.join(' · ')}${sospechosa ? ' — ¿seguro?' : ''}</span>
+        </button>
+        <button class="ed__cambio-deshacer" type="button" title="Devolverla a como nació">↺</button>`;
+      fila.querySelector('.ed__cambio-ir').addEventListener('click', () => {
+        editor.enfocar(editor.seleccionar(id));
+      });
+      fila.querySelector('.ed__cambio-deshacer').addEventListener('click', () => {
+        editor.restablecer(id);
+      });
+      cambios.appendChild(fila);
+    }
+
+    for (const nombre of Object.keys(materiales)) {
+      const fila = document.createElement('div');
+      fila.className = 'ed__cambio';
+      fila.innerHTML = `
+        <button class="ed__cambio-ir" type="button" disabled>${nombre}
+          <span>material retocado</span></button>
+        <button class="ed__cambio-deshacer" type="button" title="Volver al material generado">↺</button>`;
+      fila.querySelector('.ed__cambio-deshacer').addEventListener('click', () => {
+        anotarMaterial(nombre, null);
+        editor.marcarSucio();
+        refrescarCambios();
+        avisar(`«${nombre}» vuelve a su material generado al recargar.`);
+      });
+      cambios.appendChild(fila);
+    }
+  }
 
   // ----------------------------------------------------------- transformación
 
@@ -333,14 +458,17 @@ export function crearPanel(editor) {
   }
 
   refrescarMateriales();
+  refrescarCambios();
   avisar('Pulsa una pieza en la escena o búscala en la lista.');
 
   return {
     refrescarLista(nuevas) {
       piezas = nuevas;
       pintarLista();
+      refrescarCambios();
       avisar(`${piezas.length} piezas editables.`);
     },
+    refrescarCambios,
     refrescarTransformacion,
     marcarSeleccion,
     marcarModo,

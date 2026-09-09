@@ -95,6 +95,37 @@ try {
   // huérfanos los botones: seis cuentas idénticas no prueban nada.
   comprobar(distintas >= 4, 'Y cada una es distinta de las demás', `${distintas} tamaños distintos`);
 
+  // El editor de escena, al alcance desde aquí. Los dos son hermanos —escriben
+  // en el proyecto por el mismo plugin de Vite y sólo existen en desarrollo—
+  // y hasta ahora había que saberse la dirección de memoria. Aquí se editan los
+  // textos; allí, dónde está cada piedra.
+  const alEditor = await page.evaluate(() => {
+    const b = document.querySelector('[data-ver="editor"]');
+    if (!b) return null;
+    let abierta = null;
+    const original = window.open;
+    window.open = (url, nombre) => {
+      abierta = { url, nombre };
+      return { focus() {} };
+    };
+    b.click();
+    window.open = original;
+    return { texto: b.textContent.trim(), enElLateral: Boolean(b.closest('.ad__lado-pie')), abierta };
+  });
+  comprobar(Boolean(alEditor), 'Hay un botón que lleva al editor de escena', alEditor?.texto ?? 'no existe');
+  comprobar(
+    alEditor?.abierta?.url === '?modo=3d&editor',
+    'Y abre la escena en modo edición',
+    alEditor?.abierta?.url ?? ''
+  );
+  // En su propia ventana: mover piedras es una sesión larga, y perderla porque
+  // se pulsó «Ver la isla» encima sería el peor momento para reusar pestaña.
+  comprobar(
+    alEditor?.abierta?.nombre === 'portafolio-editor',
+    'En una ventana propia, no en la de previsualización',
+    alEditor?.abierta?.nombre ?? ''
+  );
+
   // ── 1b. La página se puede desplazar ────────────────────────────────────
   //
   // Con nueve proyectos el formulario mide cuatro pantallas. `base.css` le
