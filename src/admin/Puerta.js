@@ -22,7 +22,7 @@
 
 export function montarPuerta(raiz, alEntrar) {
   raiz.innerHTML = `
-    <div class="pu">
+    <div class="pu" data-puerta>
       <form class="pu__caja" novalidate>
         <h1 class="pu__titulo">Panel</h1>
         <p class="pu__pie">Sólo para quien lleva el portafolio.</p>
@@ -58,6 +58,14 @@ export function montarPuerta(raiz, alEntrar) {
       // Fuera de la memoria del navegador en cuanto ha servido.
       campo.value = '';
       nota.textContent = 'Dentro.';
+      // Y FUERA DE LA PANTALLA antes de que entre el panel.
+      //
+      // El panel se monta en el mismo cuerpo, detrás de la puerta. Dejándola
+      // puesta se apilaban los dos, y como la puerta ocupa el alto entero de la
+      // ventana, el panel quedaba justo por debajo del borde inferior: quien
+      // acertaba la contraseña leía «Dentro.» y no veía nada más. Parecía que
+      // la entrada estuviera rota cuando lo único roto era el orden.
+      raiz.querySelector('[data-puerta]')?.remove();
       alEntrar();
     } catch (err) {
       nota.dataset.mal = 'sí';
