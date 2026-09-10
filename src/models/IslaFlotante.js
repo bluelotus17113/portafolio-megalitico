@@ -35,9 +35,10 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createBoulder, createStone, rockMaterial, stoneMesh } from './StoneFactory.js';
+import { createBoulder, createSlab, createStone, rockMaterial, stoneMesh } from './StoneFactory.js';
 import { createTree, barkMaterial, leafMaterial } from './Tree.js';
 import { radialSprite } from '../utils/textures.js';
+import { applyToonShading, TOON_PRESETS } from '../vfx/toon.js';
 import { PALETTE, SEED } from '../config.js';
 import { makeRandom, SimplexNoise } from '../utils/noise.js';
 
@@ -661,6 +662,138 @@ function cantos(seed) {
   return m;
 }
 
+
+/**
+ * Cubierta vegetal: mata menuda repartida por todo el prado.
+ *
+ * Es lo que separa un prado de una alfombra. El arbolado da silueta y los
+ * cantos dan textura, pero entre unos y otros quedaban descampados de verde
+ * liso donde no crece nada, y eso en un sitio que lleva ahí siglos no pasa.
+ *
+ * Va en su propia pasada y no dentro de `arbolado` porque la regla es otra:
+ * aquel se reparte por sectores para que se vea equilibrado, y ésta se
+ * amontona donde puede, que es como crece el brezo.
+ */
+function matorral(seed, entrada) {
+  const g = new THREE.Group();
+  g.name = 'isla-matorral';
+  const random = makeRandom(seed + 2024);
+  const rumboEntrada = Math.atan2(entrada.z, entrada.x);
+
+  for (const [especie, cuantos, escMin, escMax] of [
+    ['brezo', 34, 0.3, 0.6],
+    ['helecho', 22, 0.22, 0.4],
+  ]) {
+    const puestos = [];
+    for (let i = 0; i < cuantos * 3 && puestos.length < cuantos; i++) {
+      const th = random() * Math.PI * 2;
+      const k = 0.14 + Math.sqrt(random()) * 0.78;
+      // Ni dentro del pilón ni en la senda de llegada: por ahí se anda.
+      if (k * ISLA_RADIO < FUENTE_RADIO + 1.4) continue;
+      let d = th - rumboEntrada;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      if (Math.abs(d) < 0.28) continue;
+      puestos.push({
+        x: Math.cos(th) * ISLA_RADIO * k,
+        z: Math.sin(th) * ISLA_RADIO * k,
+        y: cotaCesped(k),
+        giro: random() * Math.PI * 2,
+        escala: escMin + random() * (escMax - escMin),
+      });
+    }
+    if (!puestos.length) continue;
+    const planta = createTree({ species: especie, seed: seed + especie.length * 17 });
+    const m4 = new THREE.Matrix4();
+    for (const [geo, mat, sufijo] of [
+      [planta.trunk, barkMaterial(), 'tallo'],
+      [planta.canopy, leafMaterial(especie), 'mata'],
+    ]) {
+      const inst = new THREE.InstancedMesh(geo, mat, puestos.length);
+      inst.name = `isla-${especie}-${sufijo}`;
+      inst.castShadow = true;
+      puestos.forEach((p, i) => {
+        m4.compose(
+          new THREE.Vector3(p.x, p.y, p.z),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.giro, 0)),
+          new THREE.Vector3(p.escala, p.escala, p.escala)
+        );
+        inst.setMatrixAt(i, m4);
+      });
+      inst.instanceMatrix.needsUpdate = true;
+      g.add(inst);
+    }
+  }
+  return g;
+}
+
+/**
+ * La senda de losas de la llegada al manantial, y el menhir caído.
+ *
+ * La senda hace un trabajo que no es decorativo: dice POR DÓNDE. Quien llega
+ * arriba se encuentra un prado redondo con árboles y no hay nada que le diga
+ * que el sitio al que ha subido está en el centro; con una línea de losas
+ * hundidas en la hierba, no hace falta decírselo.
+ *
+ * Y el menhir caído es lo único de la isla que cuenta que aquí ha pasado
+ * tiempo. Tres de pie y uno tumbado: los tres de pie son un lugar, el tumbado
+ * es una historia.
+ */
+function senda(seed, entrada) {
+  const random = makeRandom(seed + 3131);
+  const geos = [];
+
+  const dist = Math.hypot(entrada.x, entrada.z);
+  const ux = entrada.x / dist;
+  const uz = entrada.z / dist;
+  const LOSAS = 9;
+  for (let i = 0; i < LOSAS; i++) {
+    const t = i / (LOSAS - 1);
+    const r = dist * (1 - t) + (FUENTE_RADIO + 1.1) * t;
+    // Zigzag suave: una hilera recta de losas se lee como una regla.
+    const lado = (random() - 0.5) * 1.5;
+    const x = ux * r - uz * lado;
+    const z = uz * r + ux * lado;
+    const k = Math.hypot(x, z) / ISLA_RADIO;
+    const losa = createSlab({
+      width: 1.25 + random() * 0.5,
+      height: 0.26,
+      depth: 1.05 + random() * 0.4,
+      seed: SEED + 6800 + i,
+      erosion: 0.12,
+    });
+    losa.rotateY(random() * Math.PI);
+    // Hundidas: una losa apoyada encima de la hierba parece caída de un camión.
+    losa.translate(x, cotaCesped(k) - 0.17, z);
+    geos.push(losa);
+  }
+
+  // El caído, tumbado y medio comido por el prado.
+  const caido = createStone({
+    width: 1.2,
+    height: 4.6,
+    depth: 1.0,
+    seed: SEED + 6900,
+    erosion: 0.2,
+  });
+  caido.rotateZ(Math.PI / 2 + 0.06);
+  caido.rotateY(1.1);
+  {
+    const k = 0.62;
+    const th = rumbo(entrada) + 2.3;
+    caido.translate(Math.cos(th) * ISLA_RADIO * k, cotaCesped(k) - 0.25, Math.sin(th) * ISLA_RADIO * k);
+  }
+  geos.push(caido);
+
+  const m = stoneMesh(mergeGeometries(geos, false), { name: 'isla-senda' });
+  m.castShadow = true;
+  m.receiveShadow = true;
+  for (const g of geos) g.dispose();
+  return m;
+}
+
+const rumbo = (p) => Math.atan2(p.z, p.x);
+
 /**
  * Monta la isla entera.
  *
@@ -681,10 +814,29 @@ export function createIslaFlotante({ base = 0, entrada = { x: 0, z: -11 }, seed 
   quilla.receiveShadow = true;
   isla.add(quilla);
 
-  const cesped = new THREE.Mesh(
-    cespedGeometry(seed),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true })
-  );
+  // El césped, con el MISMO sombreado que el prado del mundo.
+  //
+  // Era el único material de la isla que no pasaba por `applyToonShading`, y
+  // ahí estaba el desajuste de color: la piedra, la corteza y la hoja lo llevan
+  // desde sus fábricas, así que viraban con la hora y con la estación; la
+  // cubierta no, y de noche se quedaba de un verde de rotulador mientras el
+  // prado de abajo se apagaba. No era el tono elegido: era que este trozo de
+  // mundo no se estaba enterando de qué hora es.
+  //
+  // `estacion: 'hierba'` lo mete además en la tabla de estaciones, y la sombra
+  // de nubes lo ata a la misma luz que barre el prado.
+  const cespedMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.95,
+    flatShading: true,
+  });
+  applyToonShading(cespedMat, {
+    ...TOON_PRESETS.terrain,
+    cloudShadow: 0.42,
+    key: 'isla-cesped',
+    estacion: 'hierba',
+  });
+  const cesped = new THREE.Mesh(cespedGeometry(seed), cespedMat);
   cesped.name = 'isla-cesped';
   cesped.receiveShadow = true;
   isla.add(cesped);
@@ -694,6 +846,8 @@ export function createIslaFlotante({ base = 0, entrada = { x: 0, z: -11 }, seed 
   isla.add(menhires(seed));
   isla.add(cantos(seed));
   isla.add(arbolado(seed, entrada));
+  isla.add(matorral(seed, entrada));
+  isla.add(senda(seed, entrada));
   isla.add(fuenteGrupo(seed));
   const agua = aguaMesh();
   isla.add(agua);

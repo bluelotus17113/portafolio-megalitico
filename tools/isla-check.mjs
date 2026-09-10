@@ -110,6 +110,31 @@ const m = await page.evaluate(async () => {
     o.cesped = { arriba, abajo };
   }
 
+  // ── El césped vira con la hora, como el prado del mundo ────────────────
+  //
+  // La comprobación mira la CAUSA y no el síntoma. El síntoma era que de noche
+  // la cubierta se quedaba de un verde de rotulador mientras el prado de abajo
+  // se apagaba; la causa es que el césped de la isla era el único material que
+  // no pasaba por `applyToonShading`, así que no leía los tintes de la hora.
+  //
+  // Los uniformes de tiempo son objetos COMPARTIDOS: todos los materiales del
+  // mundo apuntan a los mismos. Comprobar que son el mismo objeto —y no dos con
+  // el mismo valor— es lo que garantiza que no se pueden desincronizar.
+  {
+    let terreno = null;
+    ex.scene.traverse((n) => {
+      if (n.isMesh && n.name === 'terrain') terreno = n;
+    });
+    // `applyToonShading` los deja en `userData.toon`, no en `userData.uniforms`.
+    const uC = cesped.material.userData?.toon;
+    const uT = terreno?.material?.userData?.toon;
+    o.tinte = {
+      cespedTiene: Boolean(uC?.uTimeLight && uC?.uTimeShade),
+      terrenoTiene: Boolean(uT?.uTimeLight && uT?.uTimeShade),
+      mismoObjeto: Boolean(uC && uT && uC.uTimeLight === uT.uTimeLight && uC.uTimeShade === uT.uTimeShade),
+    };
+  }
+
   // ── Y la quilla mira hacia fuera ───────────────────────────────────────
   {
     const a = quilla.geometry.attributes.position;
@@ -320,6 +345,14 @@ if (m.error) {
     m.cesped.abajo === 0,
     'El césped mira ARRIBA, o se ve el interior de la quilla',
     `${m.cesped.arriba} arriba / ${m.cesped.abajo} abajo`
+  );
+  comprobar(
+    m.tinte.cespedTiene && m.tinte.terrenoTiene,
+    'El césped de la isla lleva el sombreado de la hora, como el terreno'
+  );
+  comprobar(
+    m.tinte.mismoObjeto,
+    'Y lee LOS MISMOS uniformes, no unos propios que puedan desincronizarse'
   );
   comprobar(
     m.quilla.dentro === 0,
