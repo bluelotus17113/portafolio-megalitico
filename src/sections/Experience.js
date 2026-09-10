@@ -18,6 +18,7 @@ import { glyphDecal } from '../vfx/Glyphs.js';
 import { createLeyLine } from '../vfx/LeyLines.js';
 import { createIslaFlotante, islaWalkways, ISLA_RADIO } from '../models/IslaFlotante.js';
 import {
+  ANCHO as ANCHO_ESCALINATA,
   createEscalinataIsla,
   escalinataCurva,
   escalinataWalkways,
@@ -348,8 +349,23 @@ export class ExperienceShrine extends Shrine {
     const crown = stoneMesh(
       createStone({ width: 2.6, height: 8.5, depth: 1.5, seed: SEED + 2400, detail: 4, roundness: 0.32, erosion: 0.10, taper: 0.12 })
     );
+    // A UN LADO del paso, no sobre él.
+    //
+    // Estaba tres metros y medio más allá del punto de despegue, medidos a lo
+    // largo del recorrido — o sea, encima de la escalinata. Con el sendero
+    // enlosado de antes se leía como un hito al final del camino; con la
+    // escalinata sube ahora por donde él estaba, y quedaba un menhir de ocho
+    // metros y medio atravesado en los peldaños.
+    //
+    // El desvío es perpendicular al trazado y por el mismo criterio que los
+    // mojones: medio ancho de escalinata, medio de piedra, y holgura para pasar.
     const crownP = curve2d.getPoint(U_DESPEGUE);
-    crown.position.set(crownP.x, this.groundAt(crownP.x, crownP.y), crownP.y + 3.5);
+    const crownT = curve2d.getTangent(U_DESPEGUE);
+    const crownA = Math.atan2(crownT.x, crownT.y);
+    const crownOff = ANCHO_ESCALINATA / 2 + 3.2;
+    const crownX = crownP.x + Math.cos(crownA) * crownOff;
+    const crownZ = crownP.y - Math.sin(crownA) * crownOff;
+    crown.position.set(crownX, this.groundAt(crownX, crownZ), crownZ);
     this.group.add(crown);
 
     const crownGlyph = glyphDecal(RUNES.dagaz, {
@@ -361,7 +377,12 @@ export class ExperienceShrine extends Shrine {
       lineWidth: 0.03,
       glow: 0.05,
     });
-    crownGlyph.position.set(crownP.x, this.groundAt(crownP.x, crownP.y) + 5.0, crownP.y + 2.7);
+    // La runa, delante de su piedra y mirando al paso.
+    crownGlyph.position.set(
+      crownX - Math.cos(crownA) * 1.5,
+      this.groundAt(crownX, crownZ) + 5.0,
+      crownZ + Math.sin(crownA) * 1.5
+    );
     this.group.add(crownGlyph);
     this.crownGlyph = crownGlyph;
 

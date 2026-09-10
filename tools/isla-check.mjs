@@ -237,6 +237,35 @@ const m = await page.evaluate(async () => {
     o.dentroDeLaPena = dentroDeLaPena;
   }
 
+  // ── Y que nada corte el paso ───────────────────────────────────────────
+  //
+  // El menhir del presente estaba plantado sobre los peldaños: tres metros y
+  // medio más allá del despegue medidos A LO LARGO del recorrido, que con el
+  // sendero enlosado de antes era el final del camino y con la escalinata es la
+  // escalinata. Ocho metros y medio de piedra atravesados en el paso.
+  //
+  // Se mira contra la lista de COLISIONADORES de verdad —la que usa el paseo—
+  // y no contra una lista de piezas escrita a mano: lo que hay que garantizar
+  // es que no haya nada que tope, venga de donde venga.
+  {
+    const cajas = ex.rig?.walk?.colisionadores?.cajas ?? ex.rig?.walk?.colisionadores ?? [];
+    const lista = Array.isArray(cajas) ? cajas : [];
+    const estorbos = [];
+    for (let i = 0; i + 1 < P.length; i++) {
+      const A = enMundo(i);
+      for (const c of lista) {
+        if (c.maxY < A.y - 0.6 || c.minY > A.y + 2.6) continue; // ni bajo los pies ni sobre la cabeza
+        const dx = Math.max(c.minX - A.x, 0, A.x - c.maxX);
+        const dz = Math.max(c.minZ - A.z, 0, A.z - c.maxZ);
+        if (Math.hypot(dx, dz) < 1.0 && !estorbos.some((e) => e.etiqueta === c.etiqueta)) {
+          estorbos.push({ etiqueta: c.etiqueta || '(sin nombre)', peldano: i });
+        }
+      }
+    }
+    o.estorbos = estorbos;
+    o.colisionadores = lista.length;
+  }
+
   // ── La cubierta: suelo dentro, nada fuera ──────────────────────────────
   const c = sec.localToWorldXZ(sec.islaLocal.x, sec.islaLocal.z);
   const cota = sec.cotaCubierta + dy;
@@ -350,6 +379,14 @@ if (m.error) {
     m.dentroDeLaPena === 0,
     'Y ningún peldaño queda incrustado dentro de la peña',
     `${m.dentroDeLaPena}`
+  );
+
+  comprobar(
+    m.estorbos.length === 0,
+    'Y nada con cuerpo corta el paso por la escalinata',
+    m.estorbos.length
+      ? m.estorbos.map((e) => `${e.etiqueta} en el ${e.peldano}`).join(', ')
+      : `${m.colisionadores} colisionadores mirados`
   );
 
   const cu = m.cubierta;

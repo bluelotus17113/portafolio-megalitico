@@ -232,8 +232,9 @@ export function escalinataPlan(groundAt, alturaCubierta, avanceIsla, centroIsla,
  * @param {number} desde   Primer peldaño (incluido).
  * @param {number} hasta   Último (excluido).
  * @param {(i:number)=>number} alfa  Opacidad del peldaño `i`, de 0 a 1.
+ * @param {boolean} liso  Sin contrahuellas: la cara de arriba es una rampa.
  */
-function escalinataGeometry(plan, seed, desde = 0, hasta = Infinity, alfa = null) {
+function escalinataGeometry(plan, seed, desde = 0, hasta = Infinity, alfa = null, liso = false) {
   const ruido = new SimplexNoise(seed);
   const pos = [];
   const idx = [];
@@ -277,17 +278,26 @@ function escalinataGeometry(plan, seed, desde = 0, hasta = Infinity, alfa = null
     const wA = medio + ruido.noise3(A.u * 9, 0, 0) * 0.09;
     const wB = medio + ruido.noise3(B.u * 9, 0, 0) * 0.09;
 
-    // Huella: de A a B a la cota de A.
+    // La cara de arriba. Escalonada acaba el tramo a la cota de A y sube de
+    // golpe en la vertical de B; lisa sube al mismo tiempo que avanza.
+    //
+    // El vidrio va liso porque no es cantería: la piedra se labra en peldaños
+    // porque se labra pieza a pieza, y lo que sube por el aire no se labró. Y
+    // resulta que además es más honesto — lo que se pisa de verdad no son los
+    // peldaños, es la pasarela, que interpola de una cota a la siguiente. La
+    // rampa ES la superficie por la que se anda; los peldaños eran el dibujo.
+    const yB = liso ? B.y : A.y;
     const h0 = empujar(A.x - nA.x * wA, A.y, A.z - nA.y * wA);
     const h1 = empujar(A.x + nA.x * wA, A.y, A.z + nA.y * wA);
-    const h2 = empujar(B.x + nB.x * wB, A.y, B.z + nB.y * wB);
-    const h3 = empujar(B.x - nB.x * wB, A.y, B.z - nB.y * wB);
+    const h2 = empujar(B.x + nB.x * wB, yB, B.z + nB.y * wB);
+    const h3 = empujar(B.x - nB.x * wB, yB, B.z - nB.y * wB);
     quad(h0, h3, h2, h1);
 
-    // Contrahuella: de la cota de A a la de B, en la vertical de B.
-    const c0 = empujar(B.x - nB.x * wB, B.y, B.z - nB.y * wB);
-    const c1 = empujar(B.x + nB.x * wB, B.y, B.z + nB.y * wB);
-    quad(h3, c0, c1, h2);
+    if (!liso) {
+      const c0 = empujar(B.x - nB.x * wB, B.y, B.z - nB.y * wB);
+      const c1 = empujar(B.x + nB.x * wB, B.y, B.z + nB.y * wB);
+      quad(h3, c0, c1, h2);
+    }
 
     // Panza: la misma traza, PANZA metros más abajo de la cota de A, lisa.
     const p0 = empujar(A.x - nA.x * wA, A.y - PANZA, A.z - nA.y * wA);
@@ -351,32 +361,43 @@ export function createEscalinataIsla({
   const grupo = new THREE.Group();
   grupo.name = 'escalinata-isla';
 
-  // Piedra abajo, vidrio arriba, y un cruce en medio.
+  // Piedra hasta que se despega; de ahí arriba, vidrio que gana cuerpo.
   //
   // Es lo que cuenta la sección: lo andado empieza siendo tierra —cantería
-  // sobre el monte, con la ladera pegada al canto— y a partir del punto en que
-  // se despega deja de ser materia. No hay un corte: durante una docena de
-  // peldaños el vidrio se va sobreponiendo a la piedra, así que la escalinata
-  // no cambia de material, se transfigura.
+  // sobre el monte, con la ladera pegada al canto— y en el punto en que deja el
+  // suelo deja también de ser materia.
   //
-  // Dos mallas y no una porque los dos materiales no se mezclan por vértice.
-  // La opacidad del vidrio SÍ va por vértice, y ese es el cruce.
+  // El primer intento solapaba catorce peldaños de las dos mallas para que una
+  // se fundiera en la otra. Con el vidrio escalonado colaba; en cuanto se hizo
+  // liso, dejó de colar — la rampa pasa por la altura media de cada peldaño, así
+  // que las narices de la piedra asomaban POR ENCIMA del cristal y se veía una
+  // escalera metida dentro de un tobogán.
+  //
+  // Así que no se solapan: la piedra acaba en el despegue y el vidrio arranca
+  // ahí. Lo que se funde no son dos mallas, es la OPACIDAD de una sola — el
+  // vidrio empieza casi invisible y va cuajando conforme sube. Sale mejor de lo
+  // que era el cruce y además es lo que se pedía: que cuanto más se sube, más
+  // de vidrio.
   const corte = plan.peldanos.findIndex((e) => e.u >= plan.uDespegue);
-  const SOLAPE = 14;
   const iCorte = corte < 0 ? Math.floor(plan.peldanos.length * 0.5) : corte;
+  const CUAJADO = 22;
 
-  const piedra = new THREE.Mesh(
-    escalinataGeometry(plan, seed, 0, iCorte + SOLAPE + 2),
-    rockMaterial()
-  );
+  const piedra = new THREE.Mesh(escalinataGeometry(plan, seed, 0, iCorte), rockMaterial());
   piedra.name = 'escalinata-isla-cuerpo';
   piedra.castShadow = true;
   piedra.receiveShadow = true;
   grupo.add(piedra);
 
   const vidrio = new THREE.Mesh(
-    escalinataGeometry(plan, seed, Math.max(0, iCorte - 2), Infinity, (i) =>
-      Math.min(1, Math.max(0, (i - (iCorte - 2)) / SOLAPE))
+    escalinataGeometry(
+      plan,
+      seed,
+      Math.max(0, iCorte - 1),
+      Infinity,
+      // Ni siquiera al principio del todo va a cero: un tramo completamente
+      // transparente justo donde acaba la piedra deja un hueco en el camino.
+      (i) => 0.38 + 0.62 * Math.min(1, Math.max(0, (i - iCorte) / CUAJADO)),
+      true
     ),
     materialVidrio()
   );
