@@ -82,8 +82,8 @@ const CONTRAHUELLA = 0.34;
  */
 export function escalinataCurva(avanceIsla) {
   const puntos = [];
-  for (let i = 0; i <= 6; i++) {
-    const t = i / 6;
+  for (let i = 0; i < PUNTOS_TIERRA; i++) {
+    const t = i / (PUNTOS_TIERRA - 1);
     puntos.push(new THREE.Vector2(Math.sin(t * Math.PI * 1.15) * 11 - 1, 8 + t * 42));
   }
   const fin = puntos[puntos.length - 1];
@@ -101,21 +101,48 @@ export function escalinataCurva(avanceIsla) {
   //
   // Lo que se dibuja tiene que poder andarse: si el trazado obliga a girar más
   // rápido de lo que se anda, no es un camino, es un adorno con forma de camino.
-  const zIsla = fin.y + avanceIsla;
-  puntos.push(new THREE.Vector2(fin.x + 3, fin.y + 8));
-  puntos.push(new THREE.Vector2(fin.x + 5, fin.y + 17));
-  puntos.push(new THREE.Vector2(fin.x + 2, fin.y + 24));
-  puntos.push(new THREE.Vector2(fin.x - 1, zIsla - 11));
+  // Los puntos del vuelo van en FRACCIONES de su largo, no en metros fijos.
+  //
+  // Estaban en +8, +17 y +24 desde el prado, con la isla a treinta y siete. Al
+  // alejarla a sesenta, los tres se quedaron amontonados en el primer tercio y
+  // el resto era una recta larguísima: el trazado se deformaba al mover la
+  // isla, que es justo lo que no puede pasar cuando la distancia es el número
+  // que se toca para ajustar la pendiente.
+  const L = avanceIsla + ENTRADA.z;
+  puntos.push(new THREE.Vector2(fin.x + 3.5, fin.y + L * 0.2));
+  puntos.push(new THREE.Vector2(fin.x + 5.5, fin.y + L * 0.42));
+  puntos.push(new THREE.Vector2(fin.x + 3.0, fin.y + L * 0.64));
+  puntos.push(new THREE.Vector2(fin.x + 0.5, fin.y + L * 0.84));
+  puntos.push(new THREE.Vector2(fin.x + ENTRADA.x, fin.y + L));
   return new THREE.SplineCurve(puntos);
 }
+
+/** Puntos de control del tramo que pisa tierra. Son los del sendero de antes. */
+const PUNTOS_TIERRA = 7;
+
+/** Y los del vuelo. */
+const PUNTOS_VUELO = 5;
+
+/**
+ * Dónde aterriza la escalinata, en coordenadas de la ISLA.
+ *
+ * Dentro del disco y no en el canto: un último peldaño en el borde se ve
+ * colgando desde media isla. Lo publica este módulo porque quien traza la
+ * escalinata es quien sabe dónde acaba, y la isla lo necesita para no plantar
+ * un carballo en la boca de la escalera.
+ */
+export const ENTRADA = { x: -2.5, z: -12 };
 
 /**
  * Parámetro de la curva en el que la escalinata deja de tocar el suelo.
  *
- * Los siete puntos de tierra son los siete primeros de once, así que el tramo
- * de tierra ocupa los primeros seis de los diez intervalos.
+ * Derivado, no escrito a mano. `SplineCurve` reparte los puntos de control a
+ * intervalos iguales del parámetro, así que el despegue cae en el punto de
+ * control número siete; con el número a pelo, añadir un punto al vuelo movía el
+ * despegue sin que nada lo dijera —y con él los mojones, el menhir del presente
+ * y el veto del arbolado, que se sitúan por este valor.
  */
-export const U_DESPEGUE = 6 / 10;
+export const U_DESPEGUE = (PUNTOS_TIERRA - 1) / (PUNTOS_TIERRA + PUNTOS_VUELO - 1);
 
 /**
  * El perfil completo: un peldaño por elemento, ya en coordenadas locales.
@@ -166,7 +193,7 @@ export function escalinataPlan(groundAt, alturaCubierta, avanceIsla) {
   const pf = curva.getPoint(uf);
   peldanos.push({ u: uf, x: pf.x, z: pf.y, y: cotaEn(uf) });
 
-  return { curva, peldanos, largo };
+  return { curva, peldanos, largo, uDespegue: U_DESPEGUE };
 }
 
 /**

@@ -168,7 +168,7 @@ const m = await page.evaluate(async () => {
   let total = 0;
   let peorHueco = 0;
   for (let i = 0; i + 1 < P.length; i++) {
-    if (P[i].u <= 0.6) continue; // sólo el vuelo
+    if (P[i].u <= sec.planEscalinata.uDespegue) continue; // sólo el vuelo
     const A = enMundo(i);
     const B = enMundo(i + 1);
     const dx = B.x - A.x;
@@ -273,7 +273,7 @@ if (m.error) {
   console.log('\n  y se puede andar por ella');
   comprobar(
     e.errorDePasarela < 0.05,
-    'El campo de alturas da la cota del peldaño en los 101, no la del prado',
+    `El campo de alturas da la cota del peldaño en los ${e.peldanos}, no la del prado`,
     `error máximo ${e.errorDePasarela} m`
   );
   const hu = m.huella;
@@ -287,7 +287,7 @@ if (m.error) {
   comprobar(m.noche !== null, 'La isla declara qué se enciende');
   if (m.noche) {
     comprobar(
-      m.noche.luzDeDia === 0 && m.noche.luzDeNoche > 3,
+      m.noche.luzDeDia === 0 && m.noche.luzDeNoche > 10,
       'El manantial alumbra de noche y de día no existe',
       `${m.noche.luzDeDia} → ${m.noche.luzDeNoche}`
     );

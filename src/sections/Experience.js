@@ -21,6 +21,7 @@ import {
   createEscalinataIsla,
   escalinataCurva,
   escalinataWalkways,
+  ENTRADA,
   U_DESPEGUE,
 } from '../models/EscalinataIsla.js';
 import { RUNES, runeFor } from '../utils/runes.js';
@@ -33,18 +34,22 @@ import { damp, makeRandom } from '../utils/noise.js';
 const PATH_WIDTH = 3.2;
 
 /** Cuánto vuela la cubierta de la isla sobre el prado del final del camino. */
-const ISLA_VUELO = 21;
+const ISLA_VUELO = 30;
 
 /**
  * Desplazamiento de la isla más allá del final del tramo de tierra.
  *
- * Lo manda la PENDIENTE de la escalinata, no el gusto. Con la isla a seis
- * metros del prado había que subir veintiún metros en seis de avance: una
- * escalera de setenta grados, que no es una escalera. A esta distancia el vuelo
- * sale sobre los treinta y cinco grados, que es lo que mide una escalera de
- * verdad.
+ * Lo mandan dos cosas. La pendiente: con la isla a seis metros del prado había
+ * que subir veintiún metros en seis de avance, una escalera de setenta grados,
+ * que no es una escalera.
+ *
+ * Y que se despegue de la isla grande. A treinta y siete metros la peña quedaba
+ * pegada al acantilado y se leía como un saliente del promontorio, no como algo
+ * que flota. Lo que hace que una isla flotante flote no es su altura: es que
+ * haya cielo alrededor y por debajo, y para eso hay que sacarla del contorno de
+ * la otra. A sesenta hay mar entre las dos.
  */
-const ISLA_AVANCE = ISLA_RADIO + 24;
+const ISLA_AVANCE = ISLA_RADIO + 44;
 
 /**
  * Trazado del sendero, en coordenadas LOCALES del santuario.
@@ -366,7 +371,7 @@ export class ExperienceShrine extends Shrine {
     //
     // No es terreno y no puede serlo —el campo de alturas guarda una elevación
     // por (x, z)— así que es un modelo suelto. Ver la nota de `IslaFlotante.js`.
-    const isla = createIslaFlotante({ base: cotaCubierta });
+    const isla = createIslaFlotante({ base: cotaCubierta, entrada: ENTRADA });
     isla.position.x = finTierra.x;
     isla.position.z = finTierra.y + ISLA_AVANCE;
     this.group.add(isla);

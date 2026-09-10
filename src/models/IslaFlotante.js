@@ -35,15 +35,22 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createStone, rockMaterial, stoneMesh } from './StoneFactory.js';
+import { createBoulder, createStone, rockMaterial, stoneMesh } from './StoneFactory.js';
+import { createTree, barkMaterial, leafMaterial } from './Tree.js';
 import { PALETTE, SEED } from '../config.js';
 import { makeRandom, SimplexNoise } from '../utils/noise.js';
 
 /** Radio de la cubierta: lo que se pisa. */
-export const ISLA_RADIO = 13.5;
+export const ISLA_RADIO = 16;
 
-/** Cuánto cuelga la quilla por debajo de la hierba. */
-export const ISLA_QUILLA = 17;
+/**
+ * Cuánto cuelga la quilla por debajo de la hierba.
+ *
+ * Holgada respecto al radio. Una peña tan honda como ancha se lee como un
+ * peñasco arrancado; con la quilla corta se lee como una tarta, y una tarta no
+ * flota — parece apoyada en algo que no se ve.
+ */
+export const ISLA_QUILLA = 23;
 
 /** Radio libre alrededor de la fuente, para que quede sitio por donde rodearla. */
 export const FUENTE_RADIO = 3.4;
@@ -58,19 +65,64 @@ const CANTO = 1.5;
  * que proyecta sombra sobre la roca y la que dice, desde abajo, que la hierba
  * vuela por encima del vacío.
  */
+// Profundidades en FRACCIÓN de la quilla, no en metros.
+//
+// Estaban en metros y la quilla pasó de 17 a 23: los diez primeros anillos se
+// quedaron donde estaban y el último se fue solo, así que la peña era un cono
+// normal rematado por una aguja larguísima. Un perfil escrito en absolutos deja
+// de ser un perfil en cuanto se toca el tamaño.
+//
+// Y estrecha DEPRISA desde la cornisa. Con los primeros anillos por encima del
+// 0,8 del radio hasta un tercio de la profundidad, lo que se veía por debajo
+// era un plato ancho y plano; una peña arrancada se estrecha desde el primer
+// palmo.
 const PERFIL = [
-  [-CANTO, 1.06],
-  [-2.7, 0.95],
-  [-3.5, 1.01], // repisa: el radio VUELVE A CRECER, y eso es un alero
-  [-5.6, 0.81],
-  [-6.6, 0.87], // segunda repisa
-  [-9.0, 0.62],
-  [-11.2, 0.45],
-  [-12.4, 0.5], // tercera, ya menuda
-  [-14.4, 0.29],
-  [-16.0, 0.15],
-  [-ISLA_QUILLA, 0],
+  [0.06, 1.06],
+  [0.13, 0.98],
+  [0.17, 1.02], // repisa: el radio VUELVE A CRECER, y eso es un alero
+  [0.28, 0.78],
+  [0.33, 0.84], // segunda repisa
+  [0.46, 0.55],
+  [0.58, 0.38],
+  [0.64, 0.43], // tercera, ya menuda
+  [0.78, 0.22],
+  [0.9, 0.1],
+  [1, 0],
 ];
+
+/**
+ * Radio del BORDE de la isla en un ángulo dado.
+ *
+ * Lo comparten la roca y la hierba, y ese es todo el asunto. Antes cada una
+ * sacaba su irregularidad de un ruido propio —semillas distintas— así que ni
+ * casaban entre sí ni hacía falta que casaran: para disimularlo, las dos iban
+ * casi circulares. Y un disco perfecto es lo que delata que algo está hecho por
+ * una máquina; en un promontorio de verdad no hay ni un canto redondo.
+ *
+ * Con un solo borde se puede morder de verdad: entrantes, salientes y algún
+ * lóbulo, sabiendo que la hierba acaba exactamente donde empieza la peña.
+ */
+function radioBorde(ruido, th) {
+  const c = Math.cos(th);
+  const s = Math.sin(th);
+  const n = ruido.noise3(c * 1.55, 0, s * 1.55);
+  const m = ruido.noise3(c * 3.9, 0, s * 3.9) * 0.42;
+  return ISLA_RADIO * (1 + (n + m) * 0.15);
+}
+
+/** Radio de la quilla —en fracción del radio de la isla— a una profundidad. */
+function radioEnProfundidad(y) {
+  const k = Math.min(1, Math.max(0, -y / ISLA_QUILLA));
+  let a = [0, 1];
+  for (const par of PERFIL) {
+    if (par[0] >= k) {
+      const t = (k - a[0]) / (par[0] - a[0] || 1);
+      return a[1] + (par[1] - a[1]) * t;
+    }
+    a = par;
+  }
+  return 0;
+}
 
 const SEGMENTOS = 44;
 
@@ -108,18 +160,19 @@ function cuerpoGeometry(seed) {
   // apoye plana sobre él.
   for (let i = 0; i < SEGMENTOS; i++) {
     const th = (i / SEGMENTOS) * Math.PI * 2;
-    const [x, , z] = punto(ISLA_RADIO, 0, th, 0.045);
-    anillos.push([x, 0, z]);
+    const r = radioBorde(ruido, th);
+    anillos.push([Math.cos(th) * r, 0, Math.sin(th) * r]);
   }
   let fase = 0;
-  for (const [y, k] of PERFIL) {
+  for (const [prof, k] of PERFIL) {
     if (k === 0) break;
+    const y = -prof * ISLA_QUILLA;
     fase += 0.16 + (random() - 0.5) * 0.2;
     for (let i = 0; i < SEGMENTOS; i++) {
       const th = (i / SEGMENTOS) * Math.PI * 2;
       // El ruido crece hacia la punta: arriba la peña está cortada por la
       // hierba y abajo se deshace en lascas.
-      anillos.push(punto(ISLA_RADIO * k, y, th, 0.11 + (1 - k) * 0.26, fase));
+      anillos.push(punto(radioBorde(ruido, th) * k, y, th, 0.11 + (1 - k) * 0.26, fase));
     }
   }
 
@@ -160,12 +213,13 @@ function cuerpoGeometry(seed) {
  * las dos es justo la línea que se quiere ver: hierba arriba, peña abajo.
  */
 function cespedGeometry(seed) {
-  const ruido = new SimplexNoise(seed + 91);
+  // La MISMA semilla que la quilla: es lo que hace que los dos bordes sean
+  // el mismo borde y no dos parecidos.
+  const ruido = new SimplexNoise(seed);
   const pos = [];
   const idx = [];
 
-  // Loma suave que se hunde en el eje. `k` es el radio normalizado.
-  const hondo = (k) => 0.3 * (1 - k * k) - 0.58 * Math.exp(-((k / 0.27) ** 2));
+  const hondo = cotaCesped;
   const ANILLOS = 13;
 
   // El centro está HUNDIDO, no encumbrado: la fuente vive en una hondonada.
@@ -180,8 +234,7 @@ function cespedGeometry(seed) {
       const th = (i / SEGMENTOS) * Math.PI * 2;
       const c = Math.cos(th);
       const s = Math.sin(th);
-      const n = ruido.noise3(c * 1.7, 0, s * 1.7);
-      const r = ISLA_RADIO * k * (1 + n * 0.045 * k);
+      const r = radioBorde(ruido, th) * k;
       // Se abomba hacia el centro y cae hasta 0 justo en el borde, que es donde
       // la roca la recibe.
       const y = hondo(k) + ruido.noise3(c * 3.1 * k, 1.4, s * 3.1 * k) * 0.16 * (1 - k);
@@ -219,7 +272,7 @@ function cespedGeometry(seed) {
     // claro salía un verde plano de fieltro que no era de este mundo: el prado
     // de la isla grande tiene manchas de los dos tonos, no un color medio.
     const t =
-      0.4 +
+      0.33 +
       ruido.noise3(pos[i] * 0.14, 3.7, pos[i + 2] * 0.14) * 0.34 +
       ruido.noise3(pos[i] * 0.52, 9.1, pos[i + 2] * 0.52) * 0.18;
     mezcla.copy(oscuro).lerp(claro, Math.min(1, Math.max(0, t)));
@@ -232,6 +285,17 @@ function cespedGeometry(seed) {
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
+}
+
+/**
+ * Cota de la loma de hierba a un radio normalizado `k`.
+ *
+ * Vive fuera de `cespedGeometry` porque hay tres cosas que necesitan saber a
+ * qué altura queda el prado y sólo una de ellas es el prado: los árboles y las
+ * piedras se plantan sobre él, y a ojo quedan flotando o enterrados.
+ */
+export function cotaCesped(k) {
+  return 0.3 * (1 - k * k) - 0.58 * Math.exp(-((k / 0.27) ** 2));
 }
 
 /**
@@ -322,15 +386,269 @@ function aguaMesh() {
   return m;
 }
 
+
+/**
+ * El arbolado de la cubierta.
+ *
+ * Es lo que ata la isla al resto del mundo. Una peña con hierba y una fuente se
+ * lee como una maqueta; con los mismos carballos y el mismo matorral que crecen
+ * cuarenta metros más abajo, se lee como un trozo de la isla grande que se
+ * soltó. No hace falta que sean parecidos: tienen que ser LOS MISMOS, del mismo
+ * `createTree` y con los mismos materiales.
+ *
+ * Se instancian por especie —dos llamadas de dibujo cada una— y no se plantan
+ * sueltos, que siete árboles sueltos son catorce llamadas por lo mismo.
+ */
+function arbolado(seed, entrada) {
+  const g = new THREE.Group();
+  g.name = 'isla-arbolado';
+  const random = makeRandom(seed + 777);
+
+  // Rumbo por el que llega la escalinata: por ahí no se planta nada. Un
+  // carballo en la boca de la escalera tapa la llegada y, peor, tapa la fuente
+  // justo desde donde se la ve por primera vez.
+  const rumboEntrada = Math.atan2(entrada.z, entrada.x);
+
+  const lotes = new Map();
+  const PLANTAS = [
+    ['carballo', 0.52, 0.72, 4],
+    ['arbusto', 0.62, 0.86, 5],
+    ['helecho', 0.5, 0.8, 4],
+  ];
+
+  // Por SECTORES y a zancadas COPRIMAS.
+  //
+  // Con ángulos al azar los trece se apelotonaron en un tercio de la cubierta:
+  // el azar uniforme se agrupa, y un prado que se ha dejado crecer no. Y con
+  // sectores consecutivos pasaba otra cosa peor de ver que de explicar — cada
+  // especie cogía un arco seguido, así que había un rincón de carballos, otro
+  // de matorral y otro de helechos, como un vivero.
+  //
+  // Avanzando de cinco en cinco sobre trece sectores —y 5 y 13 no tienen
+  // divisores comunes— se recorren los trece antes de repetir ninguno, y las
+  // tres especies se entrelazan.
+  let sector = 0;
+  const SECTORES = 13;
+  const ZANCADA = 5;
+  for (const [especie, kMin, kMax, cuantos] of PLANTAS) {
+    const puestos = [];
+    let intentos = 0;
+    while (puestos.length < cuantos && intentos++ < 60) {
+      const th = ((sector % SECTORES) / SECTORES) * Math.PI * 2 + (random() - 0.5) * 0.4;
+      // Diferencia angular con la entrada, en [-π, π].
+      let d = th - rumboEntrada;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      if (Math.abs(d) < 0.75) { sector += ZANCADA; continue; }
+      const k = kMin + random() * (kMax - kMin);
+      const r = ISLA_RADIO * k;
+      const x = Math.cos(th) * r;
+      const z = Math.sin(th) * r;
+      sector += ZANCADA;
+      if (puestos.some((p) => Math.hypot(p.x - x, p.z - z) < 3.4)) continue;
+      puestos.push({ x, z, y: cotaCesped(k), giro: random() * Math.PI * 2, escala: 0.42 + random() * 0.2 });
+    }
+    if (puestos.length) lotes.set(especie, puestos);
+  }
+
+  const m4 = new THREE.Matrix4();
+  for (const [especie, puestos] of lotes) {
+    const planta = createTree({ species: especie, seed: seed + especie.length * 31 });
+    const tronco = new THREE.InstancedMesh(planta.trunk, barkMaterial(), puestos.length);
+    const copa = new THREE.InstancedMesh(planta.canopy, leafMaterial(especie), puestos.length);
+    tronco.name = `isla-${especie}-tronco`;
+    copa.name = `isla-${especie}-copa`;
+    tronco.castShadow = true;
+    copa.castShadow = true;
+    puestos.forEach((p, i) => {
+      m4.compose(
+        new THREE.Vector3(p.x, p.y, p.z),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.giro, 0)),
+        new THREE.Vector3(p.escala, p.escala, p.escala)
+      );
+      tronco.setMatrixAt(i, m4);
+      copa.setMatrixAt(i, m4);
+    });
+    tronco.instanceMatrix.needsUpdate = true;
+    copa.instanceMatrix.needsUpdate = true;
+    g.add(tronco, copa);
+  }
+  return g;
+}
+
+/**
+ * Tres menhires inclinados en el borde.
+ *
+ * La isla es el final del Camino del Viajero y todo el camino está jalonado de
+ * piedra hincada: sin ninguna arriba, el remate no pertenece a la serie. Van
+ * inclinados y no a plomo porque llevan ahí más tiempo que la escalinata.
+ */
+function menhires(seed) {
+  const random = makeRandom(seed + 313);
+  const geos = [];
+  for (let i = 0; i < 3; i++) {
+    const th = (i / 3) * Math.PI * 2 + 0.6;
+    const k = 0.74;
+    const piedra = createStone({
+      width: 1.1 + random() * 0.4,
+      height: 3.4 + random() * 1.6,
+      depth: 0.9,
+      seed: SEED + 6400 + i,
+      erosion: 0.15,
+      lean: (random() - 0.5) * 0.24,
+    });
+    piedra.rotateY(random() * Math.PI);
+    piedra.translate(Math.cos(th) * ISLA_RADIO * k, cotaCesped(k) - 0.3, Math.sin(th) * ISLA_RADIO * k);
+    geos.push(piedra);
+  }
+  const m = stoneMesh(mergeGeometries(geos, false), { name: 'isla-menhires' });
+  m.castShadow = true;
+  for (const g of geos) g.dispose();
+  return m;
+}
+
+/**
+ * Las raíces que cuelgan de la cornisa.
+ *
+ * Es el detalle que más dice, y cuesta poco: una peña con el corte limpio
+ * parece serrada, y una de la que cuelgan raíces parece ARRANCADA. Dice, sin
+ * escribirlo, que esto estuvo pegado a algo.
+ *
+ * Cuelgan de la cornisa y no del canto de la hierba: la cornisa es lo que vuela,
+ * y una raíz que sale por debajo del prado se lee como un pelo.
+ */
+function raices(seed) {
+  const random = makeRandom(seed + 909);
+  const geos = [];
+  const CUANTAS = 26;
+  for (let i = 0; i < CUANTAS; i++) {
+    const th = (i / CUANTAS) * Math.PI * 2 + random() * 0.22;
+    const hasta = ISLA_QUILLA * (0.2 + random() * 0.45);
+    const grueso = 0.045 + random() * 0.07;
+    // La raíz SIGUE LA PEÑA, no cuelga en el aire.
+    //
+    // La primera versión las bajaba rectas desde la cornisa, con un grosor de
+    // veinte centímetros y saliéndose de la silueta: parecían andamios
+    // apuntalando la isla desde abajo, que es exactamente lo contrario de lo
+    // que tienen que decir. Una raíz se agarra a la roca; un puntal la sujeta.
+    const puntos = [];
+    const TRAMOS = 7;
+    for (let t = 0; t <= TRAMOS; t++) {
+      const u = t / TRAMOS;
+      const y = -1.2 - hasta * u;
+      // Pegada a la superficie, un pelo por fuera para que no se hunda en ella.
+      const r = ISLA_RADIO * radioEnProfundidad(y) * 1.015;
+      const giro = th + Math.sin(u * 3.1 + i) * 0.05;
+      puntos.push(new THREE.Vector3(Math.cos(giro) * r, y, Math.sin(giro) * r));
+    }
+    // La punta se despega y cede hacia dentro: es lo único que cuelga libre.
+    const ult = puntos[puntos.length - 1];
+    puntos.push(new THREE.Vector3(ult.x * 0.9, ult.y - 1.1 - random() * 1.8, ult.z * 0.9));
+
+    const curva = new THREE.CatmullRomCurve3(puntos);
+    geos.push(new THREE.TubeGeometry(curva, 12, grueso, 4, false));
+  }
+  const m = new THREE.Mesh(mergeGeometries(geos, false), barkMaterial());
+  m.name = 'isla-raices';
+  m.castShadow = false;
+  for (const g of geos) g.dispose();
+  return m;
+}
+
+/**
+ * La nube que la sostiene sin sostenerla.
+ *
+ * En la referencia hay una, y no es adorno: es lo que da ESCALA. Sin nada
+ * debajo, una peña en el aire puede medir tres metros o trescientos, y el ojo
+ * elige lo pequeño. Con una nube pegada al fondo de la quilla, la peña mide lo
+ * que mide una nube.
+ *
+ * De poliedros achatados y planos, del mismo color que las del cielo. Nada de
+ * transparencia por capas: superpuestas se suman y sale una masa opaca con los
+ * bordes sucios.
+ */
+function nube(seed) {
+  const random = makeRandom(seed + 55);
+  const geos = [];
+  const BOLAS = 11;
+  for (let i = 0; i < BOLAS; i++) {
+    const th = random() * Math.PI * 2;
+    const r = random() * ISLA_RADIO * 0.95;
+    const radio = 3.0 + random() * 3.4;
+    const g = new THREE.IcosahedronGeometry(radio, 1);
+    g.scale(1, 0.46, 1);
+    // A la altura de la punta, ni abrazada a la panza ni tan abajo que la tape
+    // la propia isla. Pegada arriba se leía como niebla enganchada; a una
+    // quilla entera por debajo no se veía desde el prado, que es desde donde
+    // hace su trabajo — dar ESCALA. Sin nada debajo, una peña en el aire puede
+    // medir tres metros o trescientos, y el ojo elige lo pequeño.
+    g.translate(
+      Math.cos(th) * r,
+      -ISLA_QUILLA * 0.86 - random() * 3.2,
+      Math.sin(th) * r
+    );
+    geos.push(g);
+  }
+  const m = new THREE.Mesh(
+    mergeGeometries(geos, false),
+    new THREE.MeshStandardMaterial({
+      color: PALETTE.cloudLight,
+      roughness: 1,
+      flatShading: true,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+    })
+  );
+  m.name = 'isla-nube';
+  m.renderOrder = -1;
+  for (const g of geos) g.dispose();
+  return m;
+}
+
+
+/**
+ * Cantos sueltos sobre el prado.
+ *
+ * Sin ellos la cubierta es un fieltro verde: catorce metros de un solo tono con
+ * los árboles plantados encima, y el ojo lee moqueta. Los mismos cantos que
+ * salpican el prado de la isla grande dicen que esto es terreno y no una
+ * superficie.
+ */
+function cantos(seed) {
+  const random = makeRandom(seed + 1201);
+  const geos = [];
+  for (let i = 0; i < 14; i++) {
+    const th = random() * Math.PI * 2;
+    const k = 0.25 + random() * 0.62;
+    const g = createBoulder({ radius: 0.34 + random() * 0.75, seed: SEED + 6600 + i, detail: 1 });
+    g.scale(1, 0.55 + random() * 0.4, 1);
+    g.rotateY(random() * Math.PI * 2);
+    g.translate(
+      Math.cos(th) * ISLA_RADIO * k,
+      cotaCesped(k) - 0.18 - random() * 0.2,
+      Math.sin(th) * ISLA_RADIO * k
+    );
+    geos.push(g);
+  }
+  const m = stoneMesh(mergeGeometries(geos, false), { name: 'isla-cantos', dark: true });
+  m.castShadow = true;
+  m.receiveShadow = true;
+  for (const g of geos) g.dispose();
+  return m;
+}
+
 /**
  * Monta la isla entera.
  *
  * @param {object} opciones
  * @param {number} opciones.base   Altura de MUNDO de la cubierta: lo que se pisa.
+ * @param {{x:number,z:number}} opciones.entrada  Dónde aterriza la escalinata,
+ *   en coordenadas de la isla. No se adivina: lo sabe quien traza la escalinata,
+ *   y sin él el arbolado planta un carballo en la boca de la escalera.
  * @param {number} opciones.seed
- * @returns {THREE.Group} con `userData.cuerpos` ya puesto.
  */
-export function createIslaFlotante({ base = 0, seed = SEED + 7331 } = {}) {
+export function createIslaFlotante({ base = 0, entrada = { x: 0, z: -11 }, seed = SEED + 7331 } = {}) {
   const isla = new THREE.Group();
   isla.name = 'isla-flotante';
   isla.position.y = base;
@@ -348,14 +666,24 @@ export function createIslaFlotante({ base = 0, seed = SEED + 7331 } = {}) {
   cesped.receiveShadow = true;
   isla.add(cesped);
 
+  isla.add(nube(seed));
+  isla.add(raices(seed));
+  isla.add(menhires(seed));
+  isla.add(cantos(seed));
+  isla.add(arbolado(seed, entrada));
   isla.add(fuenteGrupo(seed));
   const agua = aguaMesh();
   isla.add(agua);
 
   // La luz del manantial. De día no existe; de noche es lo único que se ve de
   // la isla desde el prado, y lo que dice que allí arriba hay algo.
-  const luz = new THREE.PointLight(PALETTE.arcane, 0, 26, 2);
-  luz.position.set(0, 1.4, 0);
+  // Largo alcance a propósito: tiene que llegar a las copas y a la cara interna
+  // de la cornisa. Con veintiséis metros sólo alumbraba el brocal, y desde el
+  // prado —que es desde donde se mira— la isla se quedaba negra: el manantial
+  // se veía sólo si ya habías subido, o sea justo cuando ya no hace falta que
+  // te llame.
+  const luz = new THREE.PointLight(PALETTE.arcane, 0, 46, 1.6);
+  luz.position.set(0, 2.2, 0);
   luz.name = 'fuente-luz';
   isla.add(luz);
 
@@ -410,5 +738,5 @@ export function prenderFuente(isla, noche) {
   const k = Math.min(1, Math.max(0, noche));
   n.agua.material.emissiveIntensity = n.agua.userData.brilloBase + k * 0.85;
   n.agua.material.opacity = 0.5 + k * 0.28;
-  n.luz.intensity = k * 7;
+  n.luz.intensity = k * 16;
 }
