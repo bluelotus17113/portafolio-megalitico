@@ -32,6 +32,7 @@
  */
 
 import { CONTENIDO, ESTADOS } from '../content.js';
+import { imagenSegura } from '../utils/enlaces.js';
 import { idEtapa, PERFIL_COMPLETO } from '../perfiles.js';
 import { esc } from '../utils/html.js';
 import './admin.css';
@@ -259,7 +260,7 @@ export class Admin {
         <div class="ad__foto" data-foto>
           ${
             actual
-              ? `<img src="${esc(src)}" alt="Retrato" />`
+              ? `<img src="${esc(imagenSegura(src) ?? '')}" alt="Retrato" />`
               : '<span class="ad__foto-vacia">Arrastra un JPG aquí o pulsa para elegirlo</span>'
           }
           <input type="file" accept="image/jpeg,image/png,image/webp" hidden data-foto-fichero />

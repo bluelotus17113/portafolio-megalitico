@@ -14,6 +14,7 @@
  */
 
 import { SECTIONS } from '../config.js';
+import { hrefSeguro } from '../utils/enlaces.js';
 import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
 import { esc, hex } from '../utils/html.js';
 import { runeFor } from '../utils/runes.js';
@@ -300,7 +301,7 @@ export class Ligero {
         ? `<ul class="tags">${p.stack.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
         : '';
       const enlace = p.url
-        ? `<a class="lg-ficha__enlace" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">Ver el proyecto ↗</a>`
+        ? `<a class="lg-ficha__enlace" href="${esc(hrefSeguro(p.url))}" target="_blank" rel="noopener noreferrer">Ver el proyecto ↗</a>`
         : '';
 
       return `
@@ -484,7 +485,7 @@ export class Ligero {
         const apagado = !link.href;
         return `
           <li>
-            <a class="channels__link" href="${esc(link.href ?? '#')}"
+            <a class="channels__link" href="${esc(hrefSeguro(link.href))}"
                ${apagado ? 'aria-disabled="true" tabindex="-1"' : 'target="_blank" rel="noopener noreferrer"'}>
               <span class="channels__label">${esc(link.label)}</span>
               <span class="channels__value">${esc(link.value)}</span>

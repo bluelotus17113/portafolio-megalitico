@@ -247,12 +247,50 @@ console.log('\nVersión ligera (?modo=ligero)');
   // —y ese es el comportamiento correcto del observador, no un fallo.
   await page.evaluate(async () => {
     const paso = window.innerHeight * 0.8;
+    const parar = () => new Promise((r) => setTimeout(r, 140));
+    // Se baja y se vuelve a subir, como lee cualquiera.
+    //
+    // Bajando de una vez, el observador entrega sus avisos de forma asíncrona y
+    // a esa velocidad llega a agrupar los de una ficha que ya ha quedado
+    // arriba: la lámina se queda sin pintar y no vuelve a haber ocasión. Al
+    // lector no le pasa —en cuanto sube, la ficha vuelve a asomar y se pinta—
+    // así que la prueba tenía que recorrer la página como se recorre, no de un
+    // tirón hacia abajo y ya.
     for (let y = 0; y <= document.body.scrollHeight; y += paso) {
       window.scrollTo(0, y);
-      await new Promise((r) => setTimeout(r, 90));
+      await parar();
     }
+    for (let y = document.body.scrollHeight; y >= 0; y -= paso) {
+      window.scrollTo(0, y);
+      await parar();
+    }
+    // Y se vuelve a dejar la página desplazada, que es donde la encontraban
+    // las comprobaciones siguientes antes de que esto subiera de vuelta.
+    window.scrollTo(0, Math.round(document.body.scrollHeight * 0.5));
+    await parar();
   });
-  await new Promise((r) => setTimeout(r, 700));
+  // Se espera A QUE ESTÉN, no a que pasen 700 ms.
+  //
+  // La espera fija venía funcionando hasta que la página creció: las láminas se
+  // dibujan por procedimiento y la última acababa unas décimas más tarde que el
+  // reloj, así que la prueba cantaba 6 de 7 tres veces seguidas. No era un
+  // parpadeo —era reproducible— y tampoco era un fallo del portafolio: las
+  // siete se pintaban, sólo que después de mirar.
+  //
+  // Subir el número habría durado hasta el siguiente proyecto que se añada. Lo
+  // que se afirma es «se pintan al pasar por delante», no «se pintan en menos
+  // de setecientos milisegundos», así que se espera a la condición con un techo
+  // generoso: si de verdad no se pintan, el techo se agota y la cuenta real
+  // sale en el detalle.
+  await page
+    .waitForFunction(
+      () => {
+        const todas = document.querySelectorAll('[data-lamina]');
+        return todas.length > 0 && [...todas].every((e) => e.dataset.pintada === 'si');
+      },
+      { timeout: 6000, polling: 120 }
+    )
+    .catch(() => {});
   const alBajar = await pintadas();
   comprobar(alBajar === totalLaminas, 'se pintan al pasar por delante', `${alBajar}/${totalLaminas}`);
 

@@ -331,8 +331,8 @@
       },
       {
         "label": "Web",
-        "value": "tudominio",
-        "href": null,
+        "value": "portafolio-megalitico.vercel.app",
+        "href": "https://portafolio-megalitico.vercel.app",
         "rune": "ingwaz"
       }
     ],

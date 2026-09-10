@@ -39,6 +39,7 @@
  */
 
 import { CONTENIDO, etiquetaEstado } from '../content.js';
+import { hrefSeguro, imagenSegura } from '../utils/enlaces.js';
 import { aplicarPerfil, PERFIL_COMPLETO, perfilPorId } from '../perfiles.js';
 import { esc } from '../utils/html.js';
 
@@ -99,7 +100,7 @@ function cabecera(d) {
     .map((l) => {
       const texto = `${esc(l.label)} <span class="cv__valor">${esc(l.value)}</span>`;
       return l.href
-        ? `<li><a href="${esc(l.href)}">${texto}</a></li>`
+        ? `<li><a href="${esc(hrefSeguro(l.href))}">${texto}</a></li>`
         : `<li>${texto}</li>`;
     })
     .join('');
@@ -109,7 +110,7 @@ function cabecera(d) {
   // una foto puesta con `background-image` sale en pantalla y desaparece en el
   // PDF. Una imagen de verdad se imprime siempre.
   const foto = d.identidad.foto
-    ? `<img class="cv__foto" src="${esc(d.identidad.foto)}" alt="Retrato de ${esc(d.identidad.name)}"
+    ? `<img class="cv__foto" src="${esc(imagenSegura(d.identidad.foto) ?? '')}" alt="Retrato de ${esc(d.identidad.name)}"
            onerror="this.closest('.cv__cab')?.classList.remove('cv__cab--con-foto'); this.remove();" />`
     : '';
 
@@ -224,7 +225,7 @@ function proyectos(d) {
     // El enlace se escribe con la dirección visible y no con un «Ver proyecto»:
     // impreso, un texto que oculta su destino no lleva a ninguna parte.
     const enlace = p.url
-      ? `<p class="cv__enlace"><a href="${esc(p.url)}">${esc(sinProtocolo(p.url))}</a></p>`
+      ? `<p class="cv__enlace"><a href="${esc(hrefSeguro(p.url))}">${esc(sinProtocolo(p.url))}</a></p>`
       : '';
     return `
       <li class="cv__proyecto">

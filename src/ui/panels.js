@@ -7,6 +7,7 @@
  */
 
 import { ABOUT, CONTACT, EXPERIENCE, PROJECTS, SKILLS, etiquetaEstado } from '../content.js';
+import { hrefSeguro } from '../utils/enlaces.js';
 import { runeFor } from '../utils/runes.js';
 import { posterCanvas } from '../utils/posters.js';
 import { formularioContacto } from './contacto.js';
@@ -83,7 +84,7 @@ export function renderProject(project) {
     ? `<ul class="tags">${project.stack.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
     : '';
   const link = project.url
-    ? `<a class="external" href="${esc(project.url)}" target="_blank" rel="noopener noreferrer">Ver el proyecto ↗</a>`
+    ? `<a class="external" href="${esc(hrefSeguro(project.url))}" target="_blank" rel="noopener noreferrer">Ver el proyecto ↗</a>`
     : '';
 
   return `
@@ -181,7 +182,7 @@ export function renderContact(section) {
       const disabled = !link.href;
       return `
         <li>
-          <a class="channels__link" href="${esc(link.href ?? '#')}"
+          <a class="channels__link" href="${esc(hrefSeguro(link.href))}"
              ${disabled ? 'aria-disabled="true" tabindex="-1"' : 'target="_blank" rel="noopener noreferrer"'}>
             <span class="channels__label">${esc(link.label)}</span>
             <span class="channels__value">${esc(link.value)}</span>
