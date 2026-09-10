@@ -35,6 +35,7 @@
 
 import * as THREE from 'three';
 import { rockMaterial } from './StoneFactory.js';
+import { PALETTE } from '../config.js';
 import { SimplexNoise } from '../utils/noise.js';
 
 /** Ancho de la escalinata, de borde a borde. */
@@ -150,10 +151,35 @@ export const U_DESPEGUE = (PUNTOS_TIERRA - 1) / (PUNTOS_TIERRA + PUNTOS_VUELO - 
  * @param {(x:number,z:number)=>number} groundAt  Cota del terreno, en local.
  * @param {number} alturaCubierta  Cota LOCAL de la cubierta de la isla.
  * @param {number} avanceIsla
+ * @param {{x:number,z:number}} centroIsla  En las mismas coordenadas que la curva.
+ * @param {number} radioIsla
  */
-export function escalinataPlan(groundAt, alturaCubierta, avanceIsla) {
+export function escalinataPlan(groundAt, alturaCubierta, avanceIsla, centroIsla, radioIsla) {
   const curva = escalinataCurva(avanceIsla);
   const largo = curva.getLength();
+
+  // Dónde entra la curva en la silueta de la isla.
+  //
+  // Hay que estar ARRIBA antes de llegar aquí. Subiendo hasta el final del
+  // recorrido, los últimos seis peldaños quedaban por debajo de la cubierta
+  // mientras ya estaban dentro del radio de la peña: la escalinata atravesaba
+  // la roca por dentro y salía por el césped, como un tornillo. Desde fuera se
+  // veían tramos de peldaños incrustados en la panza.
+  //
+  // El margen de 1,08 es por la cornisa, que vuela un 6 % más que la cubierta.
+  const RESGUARDO = 1.08;
+  let uBorde = 1;
+  for (let i = 0; i <= 400; i++) {
+    const u = U_DESPEGUE + (1 - U_DESPEGUE) * (i / 400);
+    const q = curva.getPoint(u);
+    if (Math.hypot(q.x - centroIsla.x, q.y - centroIsla.z) <= radioIsla * RESGUARDO) {
+      uBorde = u;
+      break;
+    }
+  }
+  // Un pelo por encima del plano de la cubierta: el césped se abomba hasta un
+  // palmo y con la cota exacta los últimos peldaños quedaban enterrados en él.
+  const cotaLlegada = alturaCubierta + 0.12;
 
   // Cota buscada en cada punto: el terreno mientras haya terreno, y a partir
   // del despegue una subida suave hasta la cubierta. Con una recta, el enlace
@@ -162,9 +188,9 @@ export function escalinataPlan(groundAt, alturaCubierta, avanceIsla) {
     const p = curva.getPoint(u);
     const suelo = groundAt(p.x, p.y);
     if (u <= U_DESPEGUE) return suelo + REALCE;
-    const k = (u - U_DESPEGUE) / (1 - U_DESPEGUE);
+    const k = Math.min(1, (u - U_DESPEGUE) / (uBorde - U_DESPEGUE));
     const suave = k * k * (3 - 2 * k);
-    return suelo + REALCE + (alturaCubierta - suelo - REALCE) * suave;
+    return suelo + REALCE + (cotaLlegada - suelo - REALCE) * suave;
   };
 
   // Se recorre la curva a pasos finos y se emite un peldaño cada vez que se
@@ -193,13 +219,21 @@ export function escalinataPlan(groundAt, alturaCubierta, avanceIsla) {
   const pf = curva.getPoint(uf);
   peldanos.push({ u: uf, x: pf.x, z: pf.y, y: cotaEn(uf) });
 
-  return { curva, peldanos, largo, uDespegue: U_DESPEGUE };
+  return { curva, peldanos, largo, uDespegue: U_DESPEGUE, uBorde };
 }
 
 /**
  * La malla: cara de arriba escalonada, panza lisa y costados.
+ *
+ * Se construye por TRAMOS y con transparencia por vértice, que es lo que
+ * permite que la escalinata deje de ser piedra a mitad de camino. Ver
+ * `createEscalinataIsla`.
+ *
+ * @param {number} desde   Primer peldaño (incluido).
+ * @param {number} hasta   Último (excluido).
+ * @param {(i:number)=>number} alfa  Opacidad del peldaño `i`, de 0 a 1.
  */
-function escalinataGeometry(plan, seed) {
+function escalinataGeometry(plan, seed, desde = 0, hasta = Infinity, alfa = null) {
   const ruido = new SimplexNoise(seed);
   const pos = [];
   const idx = [];
@@ -218,15 +252,22 @@ function escalinataGeometry(plan, seed) {
   // La primera versión pintaba color por vértice entre `rock` y `rockDark` y
   // salía una cinta casi blanca: al lado de los menhires, que llevan el
   // material triplanar con su grano y su liquen, parecía de otro juego.
+  const col = [];
+  let aHora = 1;
   const empujar = (x, y, z) => {
     const n = ruido.noise3(x * 0.4, y * 0.4, z * 0.4);
     pos.push(x, y + n * 0.03, z);
+    // El cuarto canal es la opacidad: three lo usa cuando el atributo de color
+    // tiene cuatro componentes y el material lleva `vertexColors`.
+    col.push(1, 1, 1, aHora);
     return pos.length / 3 - 1;
   };
 
   const quad = (a, b, c, d) => idx.push(a, b, c, a, c, d);
 
-  for (let i = 0; i + 1 < peldanos.length; i++) {
+  const fin = Math.min(peldanos.length - 1, hasta);
+  for (let i = Math.max(0, desde); i < fin; i++) {
+    aHora = alfa ? alfa(i) : 1;
     const A = peldanos[i];
     const B = peldanos[i + 1];
     const nA = normalEn(A.u);
@@ -262,9 +303,35 @@ function escalinataGeometry(plan, seed) {
 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
+}
+
+/**
+ * El vidrio del tramo volado.
+ *
+ * `DoubleSide` no es un descuido: en un sólido opaco ver la cara de dentro es
+ * un fallo, y en vidrio es justo lo que hace que parezca vidrio — se ve el
+ * canto del peldaño de más allá a través del de más acá. Y por eso tampoco
+ * escribe en el buffer de profundidad.
+ */
+function materialVidrio() {
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xcaf4f6,
+    emissive: PALETTE.arcaneDeep,
+    emissiveIntensity: 0.45,
+    roughness: 0.05,
+    metalness: 0,
+    clearcoat: 1,
+    clearcoatRoughness: 0.04,
+    transparent: true,
+    opacity: 0.62,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    vertexColors: true,
+  });
 }
 
 /**
@@ -272,16 +339,50 @@ function escalinataGeometry(plan, seed) {
  *
  * @returns {{grupo: THREE.Group, plan: object}}
  */
-export function createEscalinataIsla({ groundAt, alturaCubierta, avanceIsla, seed = 8821 }) {
-  const plan = escalinataPlan(groundAt, alturaCubierta, avanceIsla);
+export function createEscalinataIsla({
+  groundAt,
+  alturaCubierta,
+  avanceIsla,
+  centroIsla,
+  radioIsla,
+  seed = 8821,
+}) {
+  const plan = escalinataPlan(groundAt, alturaCubierta, avanceIsla, centroIsla, radioIsla);
   const grupo = new THREE.Group();
   grupo.name = 'escalinata-isla';
 
-  const malla = new THREE.Mesh(escalinataGeometry(plan, seed), rockMaterial());
-  malla.name = 'escalinata-isla-cuerpo';
-  malla.castShadow = true;
-  malla.receiveShadow = true;
-  grupo.add(malla);
+  // Piedra abajo, vidrio arriba, y un cruce en medio.
+  //
+  // Es lo que cuenta la sección: lo andado empieza siendo tierra —cantería
+  // sobre el monte, con la ladera pegada al canto— y a partir del punto en que
+  // se despega deja de ser materia. No hay un corte: durante una docena de
+  // peldaños el vidrio se va sobreponiendo a la piedra, así que la escalinata
+  // no cambia de material, se transfigura.
+  //
+  // Dos mallas y no una porque los dos materiales no se mezclan por vértice.
+  // La opacidad del vidrio SÍ va por vértice, y ese es el cruce.
+  const corte = plan.peldanos.findIndex((e) => e.u >= plan.uDespegue);
+  const SOLAPE = 14;
+  const iCorte = corte < 0 ? Math.floor(plan.peldanos.length * 0.5) : corte;
+
+  const piedra = new THREE.Mesh(
+    escalinataGeometry(plan, seed, 0, iCorte + SOLAPE + 2),
+    rockMaterial()
+  );
+  piedra.name = 'escalinata-isla-cuerpo';
+  piedra.castShadow = true;
+  piedra.receiveShadow = true;
+  grupo.add(piedra);
+
+  const vidrio = new THREE.Mesh(
+    escalinataGeometry(plan, seed, Math.max(0, iCorte - 2), Infinity, (i) =>
+      Math.min(1, Math.max(0, (i - (iCorte - 2)) / SOLAPE))
+    ),
+    materialVidrio()
+  );
+  vidrio.name = 'escalinata-isla-vidrio';
+  vidrio.renderOrder = 3;
+  grupo.add(vidrio);
 
   return { grupo, plan };
 }

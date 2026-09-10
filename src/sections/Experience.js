@@ -168,6 +168,8 @@ export class ExperienceShrine extends Shrine {
       groundAt: (x, z) => this.groundAt(x, z),
       alturaCubierta: cotaCubierta,
       avanceIsla: ISLA_AVANCE,
+      centroIsla: { x: finTierra.x, z: finTierra.y + ISLA_AVANCE },
+      radioIsla: ISLA_RADIO,
       seed: SEED + 2600,
     });
     this.group.add(escalinata);

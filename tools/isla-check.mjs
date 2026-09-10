@@ -110,6 +110,28 @@ const m = await page.evaluate(async () => {
     o.cesped = { arriba, abajo };
   }
 
+  // ── Y la quilla mira hacia fuera ───────────────────────────────────────
+  {
+    const a = quilla.geometry.attributes.position;
+    const ix = quilla.geometry.index;
+    let fuera = 0;
+    let dentro = 0;
+    for (let t = 0; t < ix.count; t += 3) {
+      const Q = [0, 1, 2].map((k) => {
+        const i = ix.getX(t + k);
+        return [a.getX(i), a.getY(i), a.getZ(i)];
+      });
+      const u = [Q[1][0] - Q[0][0], Q[1][1] - Q[0][1], Q[1][2] - Q[0][2]];
+      const v = [Q[2][0] - Q[0][0], Q[2][1] - Q[0][1], Q[2][2] - Q[0][2]];
+      const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+      const cx = (Q[0][0] + Q[1][0] + Q[2][0]) / 3;
+      const cz = (Q[0][2] + Q[1][2] + Q[2][2]) / 3;
+      if (n[0] * cx + n[2] * cz > 0) fuera++;
+      else dentro++;
+    }
+    o.quilla = { fuera, dentro };
+  }
+
   // ── La fuente no está enterrada ────────────────────────────────────────
   if (agua && cesped) {
     const a = cesped.geometry.attributes.position;
@@ -121,6 +143,7 @@ const m = await page.evaluate(async () => {
   }
 
   // ── La sección, su plan y sus pasarelas ────────────────────────────────
+  const ISLA = await import('/src/models/IslaFlotante.js');
   const sec = Object.values(ex.world.shrines || {}).find((s) => s.planEscalinata);
   if (!sec) {
     o.error = 'no encuentro la sección con escalinata';
@@ -194,6 +217,26 @@ const m = await page.evaluate(async () => {
   }
   o.huella = { muestras: total, sinSuelo, peorHueco: +peorHueco.toFixed(1) };
 
+  // ── Y que no atraviese la peña ─────────────────────────────────────────
+  //
+  // Subiendo hasta el final del recorrido, los últimos peldaños llegaban a la
+  // cubierta cuando ya estaban dentro del radio de la roca: la escalinata
+  // entraba por la panza y salía por el césped, como un tornillo, y desde fuera
+  // se veían tramos incrustados en la peña.
+  {
+    const cIsla = sec.islaLocal;
+    const cubierta = sec.cotaCubierta;
+    let dentroDeLaPena = 0;
+    for (const e of P) {
+      const d = Math.hypot(e.x - cIsla.x, e.z - cIsla.z);
+      const prof = cubierta - e.y;
+      if (prof <= 0.05 || prof > 23) continue;
+      // Radio de la roca a esa profundidad, leído del propio módulo.
+      if (d < ISLA.radioEnProfundidad(-prof) * 16) dentroDeLaPena++;
+    }
+    o.dentroDeLaPena = dentroDeLaPena;
+  }
+
   // ── La cubierta: suelo dentro, nada fuera ──────────────────────────────
   const c = sec.localToWorldXZ(sec.islaLocal.x, sec.islaLocal.z);
   const cota = sec.cotaCubierta + dy;
@@ -250,6 +293,11 @@ if (m.error) {
     `${m.cesped.arriba} arriba / ${m.cesped.abajo} abajo`
   );
   comprobar(
+    m.quilla.dentro === 0,
+    'La quilla mira hacia FUERA, o se ve su cara interior en vez de la roca',
+    `${m.quilla.fuera} fuera / ${m.quilla.dentro} dentro`
+  );
+  comprobar(
     m.fuente.agua > m.fuente.cespedEnElCentro,
     'La lámina de agua asoma sobre el césped, no debajo',
     `agua ${m.fuente.agua} · césped ${m.fuente.cespedEnElCentro}`
@@ -297,6 +345,12 @@ if (m.error) {
       `${m.noche.brilloDeDia} → ${m.noche.brilloDeNoche}`
     );
   }
+
+  comprobar(
+    m.dentroDeLaPena === 0,
+    'Y ningún peldaño queda incrustado dentro de la peña',
+    `${m.dentroDeLaPena}`
+  );
 
   const cu = m.cubierta;
   comprobar(

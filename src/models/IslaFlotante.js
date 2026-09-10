@@ -37,6 +37,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBoulder, createStone, rockMaterial, stoneMesh } from './StoneFactory.js';
 import { createTree, barkMaterial, leafMaterial } from './Tree.js';
+import { radialSprite } from '../utils/textures.js';
 import { PALETTE, SEED } from '../config.js';
 import { makeRandom, SimplexNoise } from '../utils/noise.js';
 
@@ -111,7 +112,7 @@ function radioBorde(ruido, th) {
 }
 
 /** Radio de la quilla —en fracción del radio de la isla— a una profundidad. */
-function radioEnProfundidad(y) {
+export function radioEnProfundidad(y) {
   const k = Math.min(1, Math.max(0, -y / ISLA_QUILLA));
   let a = [0, 1];
   for (const par of PERFIL) {
@@ -187,7 +188,16 @@ function cuerpoGeometry(seed) {
       const b = f * SEGMENTOS + j;
       const c = (f + 1) * SEGMENTOS + i;
       const d = (f + 1) * SEGMENTOS + j;
-      idx.push(a, c, b, b, c, d);
+      // Cara HACIA FUERA.
+      //
+      // Iba al revés: los 924 triángulos de la quilla miraban al centro, así
+      // que con recorte por cara trasera lo que se veía desde fuera era la
+      // superficie INTERIOR del otro lado, iluminada por la luz que entra por
+      // arriba. De ahí que la peña se leyera como un cuenco oscuro y plano en
+      // vez de como una roca: no estábamos mirando la roca.
+      //
+      // Es el mismo fallo que tenía el césped, y no se me ocurrió mirar aquí.
+      idx.push(a, b, c, b, d, c);
     }
   }
 
@@ -196,7 +206,8 @@ function cuerpoGeometry(seed) {
   pos.push((random() - 0.5) * 1.2, -ISLA_QUILLA, (random() - 0.5) * 1.2);
   const ultimo = (filas - 1) * SEGMENTOS;
   for (let i = 0; i < SEGMENTOS; i++) {
-    idx.push(ultimo + i, punta, ultimo + ((i + 1) % SEGMENTOS));
+    // El abanico de la punta, con el mismo sentido que los costados.
+    idx.push(ultimo + i, ultimo + ((i + 1) % SEGMENTOS), punta);
   }
 
   const g = new THREE.BufferGeometry();
@@ -558,54 +569,66 @@ function raices(seed) {
 /**
  * La nube que la sostiene sin sostenerla.
  *
- * En la referencia hay una, y no es adorno: es lo que da ESCALA. Sin nada
- * debajo, una peña en el aire puede medir tres metros o trescientos, y el ojo
- * elige lo pequeño. Con una nube pegada al fondo de la quilla, la peña mide lo
- * que mide una nube.
+ * No es adorno: es lo que da ESCALA. Sin nada debajo, una peña en el aire puede
+ * medir tres metros o trescientos, y el ojo elige lo pequeño. Con una nube por
+ * debajo, la peña mide lo que mide una nube.
  *
- * De poliedros achatados y planos, del mismo color que las del cielo. Nada de
- * transparencia por capas: superpuestas se suman y sale una masa opaca con los
- * bordes sucios.
+ * ── Por qué motas y no poliedros ───────────────────────────────────────────
+ *
+ * La primera versión era un montón de icosaedros achatados. Tenía todos los
+ * papeles en regla —color de nube, caras planas como el resto del mundo— y se
+ * leía como poliespán: una nube no tiene silueta, y aquello tenía once.
+ *
+ * Esto son motas sueltas orientadas a cámara con una caída suave. Al girar
+ * alrededor no hay ninguna cara que se ponga de perfil, y donde dos se
+ * superponen la densidad se suma sola. Es lo que hace que parezca que tiene
+ * dentro.
+ *
+ * ── El truco del volumen es el TONO, no la forma ───────────────────────────
+ *
+ * Las motas no reciben luz, así que un cúmulo de un solo blanco sale plano por
+ * mucha mota que lleve. Las de abajo van del color de sombra de nube del mundo
+ * y las de arriba del de luz: eso solo ya dibuja un cúmulo iluminado desde
+ * arriba, que es de donde viene el sol.
  */
 function nube(seed) {
+  const g = new THREE.Group();
+  g.name = 'isla-nube';
   const random = makeRandom(seed + 55);
-  const geos = [];
-  const BOLAS = 11;
-  for (let i = 0; i < BOLAS; i++) {
-    const th = random() * Math.PI * 2;
-    const r = random() * ISLA_RADIO * 0.95;
-    const radio = 3.0 + random() * 3.4;
-    const g = new THREE.IcosahedronGeometry(radio, 1);
-    g.scale(1, 0.46, 1);
-    // A la altura de la punta, ni abrazada a la panza ni tan abajo que la tape
-    // la propia isla. Pegada arriba se leía como niebla enganchada; a una
-    // quilla entera por debajo no se veía desde el prado, que es desde donde
-    // hace su trabajo — dar ESCALA. Sin nada debajo, una peña en el aire puede
-    // medir tres metros o trescientos, y el ojo elige lo pequeño.
-    g.translate(
-      Math.cos(th) * r,
-      -ISLA_QUILLA * 0.86 - random() * 3.2,
-      Math.sin(th) * r
-    );
-    geos.push(g);
-  }
-  const m = new THREE.Mesh(
-    mergeGeometries(geos, false),
-    new THREE.MeshStandardMaterial({
-      color: PALETTE.cloudLight,
-      roughness: 1,
-      flatShading: true,
-      transparent: true,
-      opacity: 0.6,
-      depthWrite: false,
-    })
-  );
-  m.name = 'isla-nube';
-  m.renderOrder = -1;
-  for (const g of geos) g.dispose();
-  return m;
-}
+  const textura = radialSprite({ size: 128, falloff: 2.1 });
+  const oscuro = new THREE.Color(PALETTE.cloudShade);
+  const claro = new THREE.Color(PALETTE.cloudLight);
 
+  const MOTAS = 46;
+  // Arrimada a la punta de la quilla. Colgada a una quilla entera por debajo no
+  // se veía desde el prado, que es desde donde hace su trabajo: dar escala.
+  const TECHO = -ISLA_QUILLA * 0.66;
+  const HONDO = 13;
+  for (let i = 0; i < MOTAS; i++) {
+    const th = random() * Math.PI * 2;
+    // Repartidas en un disco achatado más ancho que la isla: una nube que cabe
+    // dentro de la silueta de la peña no se ve desde ningún sitio útil.
+    const r = Math.sqrt(random()) * ISLA_RADIO * 1.65;
+    const alto = random();
+    const y = TECHO - alto * HONDO;
+    const tam = 7 + random() * 11;
+
+    const mat = new THREE.SpriteMaterial({
+      map: textura,
+      color: oscuro.clone().lerp(claro, 1 - alto * 0.85),
+      transparent: true,
+      opacity: 0.26 + random() * 0.2,
+      depthWrite: false,
+      fog: true,
+    });
+    const m = new THREE.Sprite(mat);
+    m.position.set(Math.cos(th) * r, y, Math.sin(th) * r);
+    m.scale.set(tam, tam * 0.72, 1);
+    g.add(m);
+  }
+  g.renderOrder = -1;
+  return g;
+}
 
 /**
  * Cantos sueltos sobre el prado.
@@ -687,7 +710,7 @@ export function createIslaFlotante({ base = 0, entrada = { x: 0, z: -11 }, seed 
   luz.name = 'fuente-luz';
   isla.add(luz);
 
-  isla.userData.nocturno = { agua, luz };
+  isla.userData.nocturno = { agua, luz, nube: isla.getObjectByName('isla-nube') };
   return isla;
 }
 
@@ -739,4 +762,12 @@ export function prenderFuente(isla, noche) {
   n.agua.material.emissiveIntensity = n.agua.userData.brilloBase + k * 0.85;
   n.agua.material.opacity = 0.5 + k * 0.28;
   n.luz.intensity = k * 16;
+  // La nube también. Un cúmulo blanco a plena opacidad sobre un mar nocturno se
+  // lee como un agujero en la pantalla.
+  if (n.nube) {
+    for (const mota of n.nube.children) {
+      if (mota.userData.opacidadDia === undefined) mota.userData.opacidadDia = mota.material.opacity;
+      mota.material.opacity = mota.userData.opacidadDia * (1 - k * 0.55);
+    }
+  }
 }
