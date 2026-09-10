@@ -61,11 +61,25 @@ export async function enviarContacto(form) {
   note.textContent = 'Llevando la ofrenda al fuego…';
 
   if (!CONTACT.endpoint) {
-    // Sin destino no se puede enviar; se dice claro en vez de fingirlo.
-    await new Promise((r) => setTimeout(r, 700));
+    // Sin destino no se puede enviar, y se dice claro en vez de fingirlo. Pero
+    // se dice A QUIEN ESTÁ DELANTE.
+    //
+    // El aviso de antes le pedía a un visitante que definiera
+    // `CONTACT.endpoint` en `src/content.js`: escrito para el dueño de la web,
+    // servido a un desconocido que sólo quería escribir. Quien se encuentra
+    // eso no vuelve. Y encima le enseña la tripa del sitio.
+    //
+    // Lo que necesita quien está ahí no es un diagnóstico: es otra manera de
+    // llegar, y con el mensaje que ya había escrito a mano.
+    await new Promise((r) => setTimeout(r, 500));
+    const canal = (CONTACT.links ?? []).find((l) => /correo|mail/i.test(l.label ?? ''));
+    const destino = canal?.value ?? '';
     note.dataset.state = 'error';
-    note.innerHTML =
-      'No hay destino configurado, así que el mensaje no ha salido. Define <code>CONTACT.endpoint</code> en <code>src/content.js</code>.';
+    note.innerHTML = destino
+      ? `El altar aún no recoge mensajes. Escríbeme directamente a <a href="mailto:${destino}?subject=${encodeURIComponent(
+          'Contacto desde el portafolio'
+        )}&body=${encodeURIComponent(data.message ?? '')}">${destino}</a> y llega igual.`
+      : 'El altar aún no recoge mensajes. Prueba por otro canal de los de arriba.';
     button.disabled = false;
     return;
   }

@@ -36,7 +36,18 @@ import { idEtapa, PERFIL_COMPLETO } from '../perfiles.js';
 import { esc } from '../utils/html.js';
 import './admin.css';
 
-const RUTA = '/__editor/contenido';
+/**
+ * A dónde se guarda, que no es el mismo sitio en los dos mundos.
+ *
+ * En local escribe el complemento de Vite directamente en el fichero. En la web
+ * publicada no hay fichero que escribir —Vercel no tiene disco— así que guardar
+ * es commitear al repositorio a través de una función, y esa función exige
+ * sesión. Por eso también cambia el verbo: `POST` a una ruta de desarrollo,
+ * `PUT` a un recurso que existe.
+ */
+const RUTA = import.meta.env.DEV ? '/__editor/contenido' : '/api/contenido';
+const METODO = import.meta.env.DEV ? 'POST' : 'PUT';
+const RUTA_RETRATO = import.meta.env.DEV ? '/__editor/retrato' : '/api/retrato';
 
 const SECCIONES = [
   { id: 'identidad', label: 'Identidad' },
@@ -726,14 +737,20 @@ export class Admin {
     this._pintarEstado();
     try {
       const res = await fetch(RUTA, {
-        method: 'POST',
+        method: METODO,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.datos),
       });
       const cuerpo = await res.json();
+      if (res.status === 401) {
+        // La sesión caduca a las ocho horas, y lo hace mientras editas. Decirlo
+        // como «HTTP 401» deja al que edita creyendo que perdió el trabajo:
+        // sigue en pantalla y sin guardar, que es lo que hay que contarle.
+        throw new Error('la sesión ha caducado; vuelve a entrar y guarda otra vez');
+      }
       if (!res.ok || !cuerpo.ok) throw new Error(cuerpo.error ?? `HTTP ${res.status}`);
       this.sucio = false;
-      this.aviso = null;
+      this.aviso = cuerpo.aviso ? { texto: cuerpo.aviso } : null;
     } catch (e) {
       // Sin ruta de guardado no hay panel: pasa si se abre la build en vez del
       // servidor de desarrollo. Se dice, y se ofrece la salida que sí queda.
@@ -798,7 +815,7 @@ export class Admin {
         lector.onerror = () => fallar(new Error('no se ha podido leer el fichero'));
         lector.readAsDataURL(fichero);
       });
-      const res = await fetch('/__editor/retrato', {
+      const res = await fetch(RUTA_RETRATO, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ datos }),
@@ -819,7 +836,7 @@ export class Admin {
 
   async _quitarFoto() {
     try {
-      await fetch('/__editor/retrato', { method: 'DELETE' });
+      await fetch(RUTA_RETRATO, { method: 'DELETE' });
     } catch {
       /* si el servidor no responde, al menos se quita de los datos */
     }

@@ -90,11 +90,18 @@ function entrar(modo) {
 /**
  * El panel de contenido, con `?admin`.
  *
- * `import.meta.env.DEV` no es una comodidad: es la puerta. En la build vale
- * `false`, la rama entera se cae al minimizar y el `import()` dinámico deja de
- * existir, así que el panel NO viaja a `dist/`. Y aunque viajara no serviría de
- * nada — quien guarda es una ruta del servidor de desarrollo, que la web
- * publicada no tiene. Las dos mitades son de desarrollo, no una sola.
+ * Antes `import.meta.env.DEV` era la puerta: en la build valía `false`, la rama
+ * se caía al minimizar y el panel no viajaba a `dist/`. Servía mientras el
+ * panel fuera sólo de local, y dejó de servir en cuanto hizo falta editar desde
+ * otro sitio.
+ *
+ * Ahora el panel SÍ viaja, y la puerta se mudó al servidor. Es donde tenía que
+ * estar desde el principio: lo que impide que alguien cambie el contenido no es
+ * que no encuentre el formulario, es que `/api/contenido` no escribe sin una
+ * cookie firmada. Esconder el formulario nunca fue una cerradura — era confiar
+ * en que nadie mirase.
+ *
+ * En local no se pide nada, porque en local la puerta es tu propia máquina.
  */
 async function mostrarAdmin() {
   // Fuera el portafolio entero: el panel ocupa la página. El lienzo sobre todo,
@@ -103,16 +110,24 @@ async function mostrarAdmin() {
   for (const id of ['portada', 'loader', 'ui', 'scene', 'ligero']) {
     document.getElementById(id)?.remove();
   }
-  const { Admin } = await import('./admin/Admin.js');
-  const panel = new Admin(document.body);
-  // Expuesto igual que la escena: es por donde mira `tools/admin-check.mjs`
-  // para comprobar qué hay en el estado sin adivinarlo desde el formulario.
-  window.__admin = panel;
-  panel.montar();
+  const abrir = async () => {
+    const { Admin } = await import('./admin/Admin.js');
+    const panel = new Admin(document.body);
+    // Expuesto igual que la escena: es por donde mira `tools/admin-check.mjs`
+    // para comprobar qué hay en el estado sin adivinarlo desde el formulario.
+    window.__admin = panel;
+    panel.montar();
+  };
+
+  if (import.meta.env.DEV) return abrir();
+
+  const { haySesion, montarPuerta } = await import('./admin/Puerta.js');
+  if (await haySesion()) return abrir();
+  montarPuerta(document.body, abrir);
 }
 
 function arrancar() {
-  if (import.meta.env.DEV && new URLSearchParams(location.search).has('admin')) {
+  if (new URLSearchParams(location.search).has('admin')) {
     return mostrarAdmin();
   }
 

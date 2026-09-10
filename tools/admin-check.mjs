@@ -374,19 +374,77 @@ try {
     rechazo.cuerpo.error ?? ''
   );
 
-  // ── 8. Nada de esto llega a la web publicada ────────────────────────────
+  // ── 8. Qué puede y qué no puede llegar a la web publicada ───────────────
+  //
+  // Esto decía «el panel no aparece en dist/», y era la comprobación correcta
+  // mientras el panel fuera sólo de local: la puerta era `import.meta.env.DEV`
+  // y consistía en que el formulario no existiera.
+  //
+  // Ya no. El panel viaja a propósito, porque hace falta editar desde otro
+  // sitio, y la puerta se mudó al servidor. Así que lo que hay que vigilar
+  // cambió, y no es que el panel no esté:
+  //
+  //   · que la ruta de escritura DEL SERVIDOR DE DESARROLLO no viaje, porque
+  //     esa no pide nada a nadie;
+  //   · que ningún secreto se haya horneado en el paquete;
+  //   · y que quien escribe de verdad rechace sin sesión.
   //
   // Se mira el `dist/` que haya. Si no lo hay, se dice: es peor dar por bueno
   // un `dist` que no existe que no comprobarlo.
   if (existsSync('dist')) {
     const { execSync } = await import('node:child_process');
-    const rastro = execSync(
-      'grep -rl "ad__pestania\\|__editor/contenido\\|admin-activo" dist/ || true',
-      { encoding: 'utf8' }
-    ).trim();
-    comprobar(rastro === '', 'El panel no aparece en dist/', rastro);
+    const buscar = (patron) =>
+      execSync(`grep -rl "${patron}" dist/ || true`, { encoding: 'utf8' }).trim();
+
+    comprobar(
+      buscar('__editor/contenido\\|__editor/retrato\\|__editor/escena') === '',
+      'Las rutas de escritura del servidor de desarrollo no viajan',
+      buscar('__editor/')
+    );
+
+    // Un secreto horneado en el paquete es público aunque esté en una variable
+    // de entorno: Vite sustituye `import.meta.env.X` por su VALOR al compilar.
+    const secretos = buscar('ADMIN_HASH\\|SESSION_SECRET\\|GITHUB_TOKEN\\|scrypt\\$');
+    comprobar(secretos === '', 'Ningún secreto se ha horneado en el paquete', secretos);
+
+    comprobar(
+      buscar('ad__pestania') !== '',
+      'Y el panel sí viaja, que es lo que permite entrar desde otro sitio'
+    );
   } else {
-    console.log('  · sin dist/ que mirar (lanza `npm run build` antes para comprobarlo)');
+    comprobar(false, 'Hay un dist/ que mirar (ejecuta `npx vite build`)');
+  }
+
+  // ── 9. Quien escribe en producción no se fía de nadie ───────────────────
+  //
+  // Se llama al manejador de verdad, no a una imitación: es la única forma de
+  // que esta comprobación siga valiendo cuando alguien toque el endpoint.
+  {
+    const { default: guardar } = await import('../api/contenido.js');
+    const respuesta = (m) => {
+      const r = { codigo: 0, cuerpo: null };
+      return [
+        { method: m, headers: {}, body: {} },
+        {
+          status(c) { r.codigo = c; return this; },
+          json(j) { r.cuerpo = j; return this; },
+          setHeader() {},
+        },
+        r,
+      ];
+    };
+    const [reqA, resA, rA] = respuesta('PUT');
+    await guardar(reqA, resA);
+    comprobar(rA.codigo === 401, 'Sin sesión, guardar en producción rebota', `HTTP ${rA.codigo}`);
+
+    const [reqB, resB, rB] = respuesta('GET');
+    await guardar(reqB, resB);
+    comprobar(rB.codigo === 405, 'Y sólo acepta PUT', `HTTP ${rB.codigo}`);
+
+    const [reqC, resC, rC] = respuesta('PUT');
+    reqC.headers.cookie = 'sesion=falsificada.aqui';
+    await guardar(reqC, resC);
+    comprobar(rC.codigo === 401, 'Una cookie inventada tampoco pasa', `HTTP ${rC.codigo}`);
   }
 } finally {
   await browser.close();

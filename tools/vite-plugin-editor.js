@@ -18,6 +18,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { revisarContenido } from '../src/contenido-forma.js';
 import { dirname, extname, join, resolve } from 'node:path';
 
 /** Extensiones de imagen admitidas, y su cabecera de data URL. */
@@ -77,30 +78,6 @@ function responder(res, codigo, cuerpo) {
   res.end(JSON.stringify(cuerpo));
 }
 
-/**
- * ¿Esto que llega por HTTP es un contenido de portafolio?
- *
- * No es paranoia de seguridad —esto sólo corre en el servidor de desarrollo de
- * quien edita— sino de integridad: `contenido.json` es el ÚNICO sitio donde
- * viven los textos del portafolio, y una petición a medias lo dejaría sin
- * proyectos sin que nadie se enterase hasta abrir la web. Se comprueba la
- * forma, no los valores: que falte un `summary` es cosa del que escribe, pero
- * que `proyectos` no sea una lista es un fichero roto.
- */
-function revisarContenido(datos) {
-  if (!datos || typeof datos !== 'object') return 'se esperaba un objeto';
-  for (const clave of ['identidad', 'perfil', 'contacto']) {
-    if (!datos[clave] || typeof datos[clave] !== 'object' || Array.isArray(datos[clave])) {
-      return `falta el bloque «${clave}»`;
-    }
-  }
-  for (const clave of ['proyectos', 'habilidades', 'trayectoria', 'formacion']) {
-    if (!Array.isArray(datos[clave])) return `«${clave}» tiene que ser una lista`;
-  }
-  if (!Array.isArray(datos.perfil.body)) return '«perfil.body» tiene que ser una lista de párrafos';
-  if (typeof datos.identidad.name !== 'string') return '«identidad.name» tiene que ser texto';
-  return null;
-}
 
 /**
  * @param {object} opciones
