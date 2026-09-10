@@ -29,7 +29,13 @@
 
 import puppeteer from 'puppeteer-core';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { aplicarPerfil, idEtapa, PERFIL_COMPLETO, perfilPorId } from '../src/perfiles.js';
+import {
+  aplicarPerfil,
+  idEtapa,
+  ordenarPorPerfil,
+  PERFIL_COMPLETO,
+  perfilPorId,
+} from '../src/perfiles.js';
 
 const RUTA = 'src/contenido.json';
 const BASE = process.env.URL ?? 'http://127.0.0.1:5173/';
@@ -262,6 +268,70 @@ try {
   // Va en `<img>` y no en un fondo de CSS a propósito: los navegadores NO
   // imprimen los fondos, así que una foto puesta con `background-image` se ve
   // en pantalla y desaparece del PDF — el único sitio donde importa.
+  // ── El selector: la única forma de usar esto sin saberse los ids ────────
+  //
+  // Las hojas a medida llevaban días hechas y sin poder usarse: había que
+  // escribir `?perfil=videojuegos` a mano en la barra del navegador. Una
+  // función que exige memorizar identificadores no está terminada.
+  console.log('\n  elegir la hoja desde la propia hoja');
+  const conSelector = await browser.newPage();
+  await conSelector.goto(`${BASE}?modo=ligero`, { waitUntil: 'networkidle2', timeout: 120000 });
+  await conSelector.waitForSelector('[data-elegir-perfil]', { timeout: 30000 });
+  const listado = await conSelector.$eval('[data-elegir-perfil]', (s2) =>
+    [...s2.options].map((o) => o.value)
+  );
+  comprobar(listado.includes('completa'), 'La completa está en la lista', listado.join(', '));
+  comprobar(listado.length >= 2, 'Y las de verdad también', `${listado.length} hojas`);
+
+  const otra = listado.find((v) => v !== 'completa');
+  await conSelector.select('[data-elegir-perfil]', otra);
+  await new Promise((r) => setTimeout(r, 2200));
+  const tras = await conSelector.evaluate(() => ({
+    url: location.search,
+    marcada: document.querySelector('[data-elegir-perfil]')?.value,
+    proyectos: document.querySelectorAll('.cv__proyecto').length,
+  }));
+  comprobar(
+    tras.url.includes(`perfil=${otra}`),
+    'Elegir cambia LA URL, no sólo la vista: el enlace que copies lleva el perfil dentro',
+    tras.url
+  );
+  comprobar(tras.marcada === otra, 'Y al recargar sigue marcada la que elegiste');
+
+  await conSelector.select('[data-elegir-perfil]', 'completa');
+  await new Promise((r) => setTimeout(r, 2200));
+  const limpia = await conSelector.evaluate(() => location.search);
+  comprobar(
+    !limpia.includes('perfil='),
+    'Volver a la completa deja el enlace limpio, sin parámetro de sobra',
+    limpia
+  );
+
+  // ── Y el orden de la isla, que es lógica pura ───────────────────────────
+  //
+  // Sin navegador: lo que se afirma —«primero los del perfil, detrás el resto,
+  // y ninguno se pierde»— es una propiedad de la función, no de la escena. El
+  // cableado a la isla lo comprueba `isla-check`, que ya carga WebGL; hacerlo
+  // aquí obligaba a levantar el 3D en una prueba que no lo necesita para nada.
+  console.log('\n  y la isla ordena, no recorta');
+  {
+    const todos = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id }));
+    const ids = (l) => l.map((x) => x.id).join('');
+    const clave = (x) => x.id;
+
+    comprobar(ids(ordenarPorPerfil(todos, ['d', 'b'], clave)) === 'dbace', 'los elegidos van delante, en SU orden');
+    comprobar(
+      ordenarPorPerfil(todos, ['d', 'b'], clave).length === todos.length,
+      'y no se pierde ninguno: la obra no se recorta'
+    );
+    comprobar(ids(ordenarPorPerfil(todos, null, clave)) === 'abcde', 'sin perfil, el orden se queda como estaba');
+    comprobar(ids(ordenarPorPerfil(todos, [], clave)) === 'abcde', 'y con lista vacía también');
+    comprobar(
+      ids(ordenarPorPerfil(todos, ['z', 'c'], clave)) === 'cabde',
+      'un id que ya no existe se ignora sin romper nada'
+    );
+  }
+
   console.log('\n  la foto');
   // Por el SELECTOR DE FICHERO, que es lo que usa una persona.
   //

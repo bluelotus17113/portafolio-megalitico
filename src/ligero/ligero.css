@@ -1091,3 +1091,39 @@ body.ligero-activo::after {
     transform: none;
   }
 }
+
+
+/* ── Elegir qué hoja de vida se descarga ─────────────────────────────────── */
+
+.lg-perfil {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.6rem;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.lg-perfil__texto {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.lg-perfil__select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* El desplegable del sistema pinta su lista con el fondo del sistema; sin esto
+   las opciones salían en blanco sobre blanco en el tema oscuro. */
+.lg-perfil__select option {
+  background: #10171b;
+  color: #e8eff1;
+}

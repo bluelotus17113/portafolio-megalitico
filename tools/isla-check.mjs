@@ -24,7 +24,7 @@
  */
 
 import puppeteer from 'puppeteer-core';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const URL = process.env.URL ?? 'http://127.0.0.1:5173/?instant';
 const CHROME = [process.env.CHROME_PATH, '/usr/bin/chromium', '/usr/bin/google-chrome-stable']
@@ -635,6 +635,58 @@ comprobar(
   'Y el agua corre al mismo ritmo: el manantial no se queda parado',
   `mundo +${dMundo.toFixed(2)} · agua +${dAgua === null ? '?' : dAgua.toFixed(2)}`
 );
+
+// ── Y el corro de proyectos obedece al perfil, sin recortarse ──────────────
+//
+// El ORDEN es lógica pura y lo comprueba `perfiles-check` sin navegador. Lo que
+// hace falta comprobar aquí es el CABLEADO: que la sección lea el perfil de la
+// dirección y se lo pase a la función. Es lo que se rompe cuando alguien toca
+// `Projects.js` sin acordarse de esto, y no se nota mirando la isla — con el
+// enlace sin perfil se ve exactamente igual.
+{
+  const conProyectos = (JSON.parse(readFileSync('src/contenido.json', 'utf8')).perfiles ?? []).find(
+    (p) => Array.isArray(p.proyectos) && p.proyectos.length
+  );
+  if (!conProyectos) {
+    console.log('\n  · sin perfiles con proyectos elegidos: no hay orden que comprobar');
+  } else {
+    const piedras = async (q) => {
+      await page.goto(`${URL}${q}`, { waitUntil: 'networkidle2', timeout: 240000 });
+      await page.waitForFunction(
+        () => {
+          const e = document.querySelector('.loader__enter');
+          return e && !e.hidden;
+        },
+        { timeout: 240000 }
+      );
+      await page.click('.loader__enter');
+      await new Promise((r) => setTimeout(r, 2500));
+      return page.evaluate(() => {
+        const ex = window.__portfolio;
+        const s2 = Object.values(ex.world.shrines || {}).find((x) => x.stations);
+        return (s2?.stations ?? []).map((e) => e.project?.id ?? '?');
+      });
+    };
+    const sinPerfil = await piedras('');
+    const conPerfil = await piedras(`&perfil=${conProyectos.id}`);
+
+    console.log('\n  el corro obedece al perfil');
+    comprobar(
+      conPerfil.length === sinPerfil.length && sinPerfil.length > 0,
+      'Con perfil hay las MISMAS piedras: la isla ordena, no recorta',
+      `${sinPerfil.length} → ${conPerfil.length}`
+    );
+    comprobar(
+      conPerfil.slice(0, conProyectos.proyectos.length).join() === conProyectos.proyectos.join(),
+      'Y las del perfil salen primeras, en su orden',
+      conPerfil.slice(0, 3).join(' → ')
+    );
+    comprobar(
+      [...conPerfil].sort().join() === [...sinPerfil].sort().join(),
+      'Sin que falte ni sobre ninguna'
+    );
+  }
+}
 
 comprobar(errores.length === 0, 'Sin errores en consola', errores.slice(0, 2).join(' | '));
 

@@ -127,6 +127,31 @@ export function aplicarPerfil(datos, perfil) {
   return salida;
 }
 
+/**
+ * Ordena sin quitar: primero lo que el perfil nombra, detrás todo lo demás.
+ *
+ * Es la diferencia entre el currículo y el portafolio, y merece decirse. Un
+ * currículo SELECCIONA —lo que no viene al caso se queda fuera, porque el que
+ * lo lee tiene un minuto—, y para eso está `elegir`. El portafolio no: la isla
+ * es la obra, y una obra que se recorta según a qué se opta deja de ser una
+ * obra. Pero poner delante lo que viene al caso no es esconder nada; es lo
+ * mismo que hace un currículo al ordenar, y quien recorra la isla entera va a
+ * encontrarlo todo igual.
+ *
+ * `null` —o sin perfil— deja el orden como estaba.
+ */
+export function ordenarPorPerfil(lista, elegidos, clave) {
+  if (!Array.isArray(elegidos) || !elegidos.length) return lista;
+  const rango = new Map(elegidos.map((id, i) => [id, i]));
+  const delante = [];
+  const detras = [];
+  lista.forEach((x, i) => {
+    (rango.has(clave(x, i)) ? delante : detras).push(x);
+  });
+  delante.sort((a, b) => rango.get(clave(a)) - rango.get(clave(b)));
+  return [...delante, ...detras];
+}
+
 /** Busca un perfil por id entre los guardados. Sin id, o sin match, el completo. */
 export function perfilPorId(perfiles, id) {
   if (!id || id === PERFIL_COMPLETO.id) return PERFIL_COMPLETO;

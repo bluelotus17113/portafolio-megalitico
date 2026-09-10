@@ -287,3 +287,10 @@
     color: #14181a;
   }
 }
+
+/* En papel no está: la hoja impresa ya ES la que se eligió. */
+@media print {
+  .lg-perfil {
+    display: none !important;
+  }
+}

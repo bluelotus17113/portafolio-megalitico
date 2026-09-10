@@ -15,7 +15,16 @@
 
 import { SECTIONS } from '../config.js';
 import { hrefSeguro } from '../utils/enlaces.js';
-import { ABOUT, CONTACT, etiquetaEstado, EXPERIENCE, IDENTITY, PROJECTS, SKILLS } from '../content.js';
+import {
+  ABOUT,
+  CONTACT,
+  CONTENIDO,
+  etiquetaEstado,
+  EXPERIENCE,
+  IDENTITY,
+  PROJECTS,
+  SKILLS,
+} from '../content.js';
 import { esc, hex } from '../utils/html.js';
 import { runeFor } from '../utils/runes.js';
 import { oghamSVG, runaSVG } from '../utils/glifos.js';
@@ -23,6 +32,7 @@ import { posterCanvas } from '../utils/posters.js';
 import { enviarContacto, formularioContacto } from '../ui/contacto.js';
 import { cambiarModo, haySoporteWebGL, PLENO } from '../modo.js';
 import { hojaDeVidaHTML, perfilPedido, tituloHoja } from './HojaDeVida.js';
+import { listaPerfiles, PERFIL_COMPLETO } from '../perfiles.js';
 import './ligero.css';
 import './impresion.css';
 
@@ -199,6 +209,40 @@ export class Ligero {
    * de que el equipo pueda con WebGL — de hecho es justo al revés: el que
    * llega aquí porque su equipo no puede es el que más lo va a usar.
    */
+  /**
+   * Elegir qué hoja de vida se descarga.
+   *
+   * Las hojas a medida llevaban hechas desde hace días y no se podían usar: la
+   * única forma de pedir una era escribir `?perfil=videojuegos` a mano en la
+   * barra del navegador. Una función que exige saberse los identificadores de
+   * memoria no está terminada, está construida.
+   *
+   * Va aquí, al lado del botón de descargar, porque es el momento en que se
+   * decide: quien va a mandar la candidatura elige a qué opta y se lleva ese
+   * PDF. Y no se dibuja si no hay más que la completa — un desplegable de un
+   * solo elemento es ruido.
+   *
+   * Elegir CAMBIA LA URL, no sólo la vista. Esa es la parte que importa: el
+   * enlace que copies de la barra es el que lleva el perfil dentro, así que
+   * mandarlo enseña lo mismo que estás viendo tú.
+   */
+  _elegirPerfil() {
+    const hojas = listaPerfiles(CONTENIDO.perfiles);
+    if (hojas.length < 2) return '';
+    const actual = perfilPedido().id;
+    const opciones = hojas
+      .map(
+        (h) =>
+          `<option value="${esc(h.id)}"${h.id === actual ? ' selected' : ''}>${esc(h.nombre)}</option>`
+      )
+      .join('');
+    return `
+      <label class="lg-perfil">
+        <span class="lg-perfil__texto">Hoja</span>
+        <select class="lg-perfil__select" data-elegir-perfil>${opciones}</select>
+      </label>`;
+  }
+
   _botonHoja(clase = 'lg-cabecera__modo lg-cabecera__modo--hoja') {
     return `
       <button class="${clase}" type="button" data-imprimir>
@@ -528,6 +572,7 @@ export class Ligero {
     return `
       <footer class="lg-pie">
         <p>Versión ligera, sin 3D.</p>
+        ${this._elegirPerfil()}
         ${this._botonHoja('lg-boton lg-boton--linea')}
         ${salida}
       </footer>`;
@@ -543,6 +588,23 @@ export class Ligero {
     // Imprimir es TODO lo que hace el botón. El PDF lo fabrica el navegador, y
     // por eso el documento sale con texto de verdad y enlaces vivos en vez de
     // con una captura de pantalla dentro.
+    const selector = this.root.querySelector('[data-elegir-perfil]');
+    if (selector) {
+      selector.addEventListener('change', () => {
+        const url = new URL(location.href);
+        // La completa no lleva parámetro: es el estado natural, y un enlace
+        // limpio es el que se manda cuando no se está optando a nada concreto.
+        if (selector.value === PERFIL_COMPLETO.id) url.searchParams.delete('perfil');
+        else url.searchParams.set('perfil', selector.value);
+        // Se recarga en vez de repintar a mano. La hoja se compone entera desde
+        // el perfil —cabecera, resumen, orden de todo— y repintar sólo el
+        // documento dejaría el título de la pestaña y el nombre del PDF con el
+        // perfil anterior, que es justo el error que hace mandar el fichero
+        // equivocado.
+        location.assign(url.toString());
+      });
+    }
+
     for (const boton of this.root.querySelectorAll('[data-imprimir]')) {
       boton.addEventListener('click', () => window.print());
     }

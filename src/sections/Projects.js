@@ -15,7 +15,8 @@ import { createLabel } from '../vfx/Label3D.js';
 import { posterCanvas, POSTER_ASPECT } from '../utils/posters.js';
 import { glyphDecal } from '../vfx/Glyphs.js';
 import { triskelion } from '../utils/runes.js';
-import { PROJECTS } from '../content.js';
+import { CONTENIDO, PROJECTS } from '../content.js';
+import { ordenarPorPerfil, perfilPorId } from '../perfiles.js';
 import { PALETTE, SEED } from '../config.js';
 import { damp } from '../utils/noise.js';
 
@@ -49,10 +50,24 @@ export class ProjectsShrine extends Shrine {
     });
 
     this.stations = [];
-    const count = PROJECTS.length;
+
+    // El perfil ORDENA el corro, no lo recorta.
+    //
+    // Con `?perfil=videojuegos` los juegos ocupan las primeras piedras según se
+    // entra y el resto quedan al fondo del círculo; están los siete siempre. Es
+    // lo mismo que hace la hoja de vida al ordenar, y sirve para lo mismo:
+    // mandar un enlace a un estudio y que lo primero que se vea sea lo que le
+    // importa. Lo que no hace es esconder — quien dé la vuelta al corro lo
+    // encuentra todo, y dos personas con el mismo enlace ven el mismo sitio.
+    const perfil = perfilPorId(
+      CONTENIDO.perfiles,
+      new URLSearchParams(location.search).get('perfil')
+    );
+    const proyectos = ordenarPorPerfil(PROJECTS, perfil.proyectos, (p) => p.id);
+    const count = proyectos.length;
 
     for (let i = 0; i < count; i++) {
-      const project = PROJECTS[i];
+      const project = proyectos[i];
       // El hueco de la entrada queda libre: el corro se abre hacia el trilito.
       const a = (i / count) * Math.PI * 2 + Math.PI / count + Math.PI;
       const x = Math.cos(a) * CIRCLE_RADIUS;
