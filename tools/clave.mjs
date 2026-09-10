@@ -48,6 +48,26 @@ function preguntar(texto) {
   });
 }
 
+/**
+ * Sin terminal de verdad no se puede preguntar sin eco.
+ *
+ * Y sin esta comprobación, el programa se quedaba esperando una respuesta que
+ * nadie podía teclear, sin imprimir nada: quien lo lanzaba desde un sitio sin
+ * terminal —una tubería, un panel, un agente— veía la pantalla en blanco y no
+ * tenía forma de saber si estaba pensando, colgado o roto.
+ *
+ * Colgarse en silencio es la peor manera de fallar que hay. Si no se puede
+ * hacer el trabajo, hay que decirlo y decir qué hacer en su lugar.
+ */
+if (!stdin.isTTY) {
+  console.error('\n  Esto necesita una terminal de verdad: la contraseña se pide sin eco,');
+  console.error('  y eso no se puede hacer a través de una tubería.\n');
+  console.error('  Abre una terminal normal y ejecuta ahí:\n');
+  console.error('    cd ' + process.cwd());
+  console.error('    node tools/clave.mjs\n');
+  process.exit(1);
+}
+
 const clave = await preguntar('Contraseña nueva (no se verá al teclear): ');
 if (clave.length < 12) {
   console.error('\n  Demasiado corta. Doce caracteres es el mínimo aquí, y no por');
