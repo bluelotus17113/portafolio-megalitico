@@ -278,32 +278,32 @@
   ],
   "trayectoria": [
     {
-      "id": "comfacor-2019",
       "period": "2019 — 2020",
-      "org": "Comfacor",
       "role": "Digitador",
-      "detail": "Digitación y registro de datos del área de salud."
+      "org": "Comfacor",
+      "detail": "Digitación y registro de datos del área de salud.",
+      "id": "comfacor-2019"
     },
     {
-      "id": "mcdonalds-2021",
       "period": "2021 — 2023",
-      "org": "McDonald's",
       "role": "Crew",
-      "detail": "Rotación por todas las estaciones del restaurante: cocina, caja y atención en salón, en turnos rotativos."
+      "org": "McDonald's",
+      "detail": "Rotación por todas las estaciones del restaurante: cocina, caja y atención en salón, en turnos rotativos.",
+      "id": "mcdonalds-2021"
     },
     {
-      "id": "cad-company-2025",
       "period": "abr. 2025 — sep. 2026",
-      "org": "CAD Company",
       "role": "Facturación y sistemas",
-      "detail": "Facturación en hojas de cálculo y soporte de sistemas: mantenimiento de equipos e impresoras, y asistencia con la base de datos."
+      "org": "CAD Company",
+      "detail": "Facturación en hojas de cálculo y soporte de sistemas: mantenimiento de equipos e impresoras, y asistencia con la base de datos.",
+      "id": "cad-company-2025"
     },
     {
-      "id": "tote-role-2020",
       "period": "sep. 2020 — actualidad",
-      "org": "Tote Role — equipo indie",
       "role": "Diseño de juego y entornos 3D",
-      "detail": "Diseño de juego y construcción de entornos 3D en Blender, en un equipo de cinco personas."
+      "org": "Tote Role — equipo indie",
+      "detail": "Diseño de juego y construcción de entornos 3D en Blender, en un equipo de cinco personas.",
+      "id": "tote-role-2020"
     }
   ],
   "contacto": {
@@ -343,8 +343,8 @@
       "id": "videojuegos",
       "nombre": "Videojuegos",
       "role": "Desarrollador de videojuegos",
-      "enfoque": "Godot y Unity, diseño de juego y entornos 3D",
       "resumen": null,
+      "enfoque": "Godot y Unity, diseño de juego y entornos 3D",
       "foto": null,
       "proyectos": [
         "vampiros-colombia",
@@ -365,17 +365,14 @@
         "Git y GitHub",
         "Linux"
       ],
-      "trayectoria": [
-        "cad-company-2025",
-        "tote-role-2020"
-      ]
+      "trayectoria": null
     },
     {
       "id": "web",
       "nombre": "Front-end / web",
       "role": "Desarrollador front-end",
-      "enfoque": "JavaScript moderno, WebGL y aplicaciones web",
       "resumen": null,
+      "enfoque": "JavaScript moderno, WebGL y aplicaciones web",
       "foto": null,
       "proyectos": [
         "portafolio",
@@ -406,11 +403,11 @@
       "id": "atencion",
       "nombre": "Servicio al cliente",
       "role": "Servicio al cliente y soporte",
-      "enfoque": "Atención al público, facturación y soporte de sistemas",
       "resumen": [
         "Vengo de tratar con público y de sostener el papeleo que hay detrás: dos años de restaurante rotando por todas las estaciones, facturación en hojas de cálculo y soporte de equipos, impresoras y base de datos.",
         "Y sé programar, que en un puesto administrativo se nota en lo que deja de hacerse a mano: la herramienta con la que renombro informes en lote la escribí yo porque el trabajo lo pedía."
       ],
+      "enfoque": "Atención al público, facturación y soporte de sistemas",
       "foto": null,
       "proyectos": [
         "renombrador-pdf",
@@ -435,18 +432,18 @@
   ],
   "formacion": [
     {
-      "id": "bachillerato-2017",
       "period": "— 2017",
       "role": "Bachiller académico",
       "org": "Liceo La Pradera — Montería",
-      "detail": ""
+      "detail": "",
+      "id": "bachillerato-2017"
     },
     {
-      "id": "diseno-grafico-2019",
       "period": "2018 — 2019",
       "role": "Diseño gráfico",
       "org": "Tecnológico San Agustín",
-      "detail": ""
+      "detail": "",
+      "id": "diseno-grafico-2019"
     }
   ]
 }
