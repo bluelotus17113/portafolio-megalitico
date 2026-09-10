@@ -137,29 +137,38 @@ try {
     const a = window.__admin;
     document.querySelector('[data-seccion="perfiles"]').click();
     await new Promise((r) => setTimeout(r, 80));
+    // Qué había ANTES, para reconocer al recién nacido.
+    //
+    // La prueba leía `perfiles[0]` dando por hecho que el nuevo es el primero,
+    // y sólo era cierto mientras la lista estuviera vacía: en cuanto el dueño
+    // del currículo se montó sus tres hojas, la prueba empezó a podar el perfil
+    // de Videojuegos y a fallar por ello. Lo que se prueba es el panel, y el
+    // panel tiene que funcionar con perfiles ya guardados.
+    const antes = new Set(a.datos.perfiles.map((p) => p.id));
     document.querySelector('[data-accion="anadir"][data-lista="perfiles"]').click();
     await new Promise((r) => setTimeout(r, 80));
 
-    const recienNacido = { ...a.datos.perfiles[0] };
+    const i = a.datos.perfiles.findIndex((p) => !antes.has(p.id));
+    const recienNacido = { ...a.datos.perfiles[i] };
     const desmarcar = async (n) => {
-      const c = [...document.querySelectorAll('[data-perfil="0"][data-lista="proyectos"]')][n];
+      const c = [...document.querySelectorAll(`[data-perfil="${i}"][data-lista="proyectos"]`)][n];
       c.checked = false;
       c.dispatchEvent(new Event('change', { bubbles: true }));
       await new Promise((r) => setTimeout(r, 60));
     };
     await desmarcar(1);
     await desmarcar(3);
-    const trasPodar = [...a.datos.perfiles[0].proyectos];
+    const trasPodar = [...a.datos.perfiles[i].proyectos];
 
-    const c = [...document.querySelectorAll('[data-perfil="0"][data-lista="proyectos"]')][1];
+    const c = [...document.querySelectorAll(`[data-perfil="${i}"][data-lista="proyectos"]`)][1];
     c.checked = true;
     c.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 60));
-    const trasRestaurar = [...a.datos.perfiles[0].proyectos];
+    const trasRestaurar = [...a.datos.perfiles[i].proyectos];
 
-    a.datos.perfiles[0].id = 'prueba';
-    a.datos.perfiles[0].nombre = 'Prueba';
-    a.datos.perfiles[0].role = 'Oficio de prueba';
+    a.datos.perfiles[i].id = 'prueba';
+    a.datos.perfiles[i].nombre = 'Prueba';
+    a.datos.perfiles[i].role = 'Oficio de prueba';
     await a._guardar();
     return {
       recienNacido,
@@ -319,7 +328,7 @@ try {
     document.querySelector('[data-accion="anadir"][data-lista="perfiles"]').click();
     await new Promise((r) => setTimeout(r, 80));
 
-    const i = a.datos.perfiles.findIndex((p) => p.id !== 'prueba');
+    const i = a.datos.perfiles.findIndex((p) => p.id !== 'prueba' && !p.role);
     const casilla = document.querySelector(`[data-perfil-foto="${i}"]`);
     const marcadaAlNacer = casilla.checked;
     casilla.checked = false;

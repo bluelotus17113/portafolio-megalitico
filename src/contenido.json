@@ -59,7 +59,7 @@
         "GDScript",
         "Pixel art"
       ],
-      "url": null,
+      "url": "https://vaknadev.itch.io/colombia-survivor",
       "estado": "terminado",
       "poster": {
         "seed": 327,
@@ -78,7 +78,7 @@
         "Capacitor",
         "Android"
       ],
-      "url": null,
+      "url": "https://github.com/bluelotus17113/toki-pona-app",
       "estado": "terminado",
       "poster": {
         "seed": 660,
@@ -136,7 +136,7 @@
         "Python",
         "PIL"
       ],
-      "url": null,
+      "url": "https://github.com/bluelotus17113/mystic-emporium",
       "estado": "progreso",
       "poster": {
         "seed": 214,
@@ -264,6 +264,16 @@
       "name": "Linux",
       "family": "Herramientas",
       "level": 0.7
+    },
+    {
+      "name": "Hojas de cálculo",
+      "family": "Herramientas",
+      "level": 0.7
+    },
+    {
+      "name": "Soporte técnico",
+      "family": "Herramientas",
+      "level": 0.65
     }
   ],
   "trayectoria": [
@@ -282,6 +292,13 @@
       "detail": "Rotación por todas las estaciones del restaurante: cocina, caja y atención en salón, en turnos rotativos."
     },
     {
+      "id": "cad-company-2025",
+      "period": "abr. 2025 — sep. 2026",
+      "org": "CAD Company",
+      "role": "Facturación y sistemas",
+      "detail": "Facturación en hojas de cálculo y soporte de sistemas: mantenimiento de equipos e impresoras, y asistencia con la base de datos."
+    },
+    {
       "id": "tote-role-2020",
       "period": "sep. 2020 — actualidad",
       "org": "Tote Role — equipo indie",
@@ -292,7 +309,7 @@
   "contacto": {
     "title": "Contacto",
     "subtitle": "El Altar de Mensajes",
-    "intro": "Marcador de posición. Aquí va la invitación a escribirte y por qué canal prefieres que lo hagan.",
+    "intro": "Si tienes un problema que resolver —una web que tiene que existir, una app que hay que publicar, un juego que sacar adelante— escríbeme y hablamos. Respondo por correo, que es donde mejor me encuentras.",
     "links": [
       {
         "label": "Correo",
@@ -321,7 +338,101 @@
     ],
     "endpoint": null
   },
-  "perfiles": [],
+  "perfiles": [
+    {
+      "id": "videojuegos",
+      "nombre": "Videojuegos",
+      "role": "Desarrollador de videojuegos",
+      "enfoque": "Godot y Unity, diseño de juego y entornos 3D",
+      "resumen": null,
+      "foto": null,
+      "proyectos": [
+        "vampiros-colombia",
+        "mystic-emporium",
+        "trypophobia",
+        "isla-nimbo",
+        "portafolio"
+      ],
+      "habilidades": [
+        "Godot 4 y GDScript",
+        "Diseño de juego",
+        "Unity 6 y C#",
+        "URP",
+        "Blender",
+        "Entornos 3D",
+        "Pixel art",
+        "Python",
+        "Git y GitHub",
+        "Linux"
+      ],
+      "trayectoria": [
+        "cad-company-2025",
+        "tote-role-2020"
+      ]
+    },
+    {
+      "id": "web",
+      "nombre": "Front-end / web",
+      "role": "Desarrollador front-end",
+      "enfoque": "JavaScript moderno, WebGL y aplicaciones web",
+      "resumen": null,
+      "foto": null,
+      "proyectos": [
+        "portafolio",
+        "toki-pona",
+        "renombrador-pdf",
+        "vampiros-colombia"
+      ],
+      "habilidades": [
+        "JavaScript",
+        "Three.js y WebGL",
+        "React",
+        "Vite",
+        "HTML y CSS",
+        "Capacitor y Android",
+        "Publicación en Play Console",
+        "Python",
+        "Git y GitHub",
+        "Linux"
+      ],
+      "trayectoria": [
+        "comfacor-2019",
+        "mcdonalds-2021",
+        "cad-company-2025",
+        "tote-role-2020"
+      ]
+    },
+    {
+      "id": "atencion",
+      "nombre": "Servicio al cliente",
+      "role": "Servicio al cliente y soporte",
+      "enfoque": "Atención al público, facturación y soporte de sistemas",
+      "resumen": [
+        "Vengo de tratar con público y de sostener el papeleo que hay detrás: dos años de restaurante rotando por todas las estaciones, facturación en hojas de cálculo y soporte de equipos, impresoras y base de datos.",
+        "Y sé programar, que en un puesto administrativo se nota en lo que deja de hacerse a mano: la herramienta con la que renombro informes en lote la escribí yo porque el trabajo lo pedía."
+      ],
+      "foto": null,
+      "proyectos": [
+        "renombrador-pdf",
+        "toki-pona"
+      ],
+      "habilidades": [
+        "Hojas de cálculo",
+        "Soporte técnico",
+        "Git y GitHub",
+        "Linux",
+        "Python",
+        "PyMuPDF y Tesseract OCR",
+        "Diseño gráfico"
+      ],
+      "trayectoria": [
+        "comfacor-2019",
+        "mcdonalds-2021",
+        "cad-company-2025",
+        "tote-role-2020"
+      ]
+    }
+  ],
   "formacion": [
     {
       "id": "bachillerato-2017",
