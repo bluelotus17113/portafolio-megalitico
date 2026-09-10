@@ -49,6 +49,29 @@ function preguntar(texto) {
 }
 
 /**
+ * Rotar sólo el secreto de firma, sin tocar la contraseña.
+ *
+ *   node tools/clave.mjs --secreto
+ *
+ * Son cosas independientes: `ADMIN_HASH` responde «¿es esta la contraseña?» y
+ * `SESSION_SECRET` firma las cookies que se entregan después. Si el segundo se
+ * ve —en una captura, en un registro, en el hombro de alguien— hay que
+ * cambiarlo aunque la contraseña siga siendo secreta: quien lo tenga puede
+ * FABRICARSE una sesión válida y entrar sin saberla.
+ *
+ * Cambiarlo cierra de golpe todas las sesiones abiertas, que es justo lo que se
+ * quiere en ese momento. Y no obliga a inventarse una contraseña nueva, que es
+ * lo que llevaría a elegir una peor por las prisas.
+ */
+if (process.argv.includes('--secreto')) {
+  console.log('\n  SESSION_SECRET');
+  console.log('  ' + randomBytes(48).toString('base64') + '\n');
+  console.log('  Reemplázalo en Vercel y redespliega. `ADMIN_HASH` no se toca:');
+  console.log('  tu contraseña sigue siendo la misma.\n');
+  process.exit(0);
+}
+
+/**
  * Sin terminal de verdad no se puede preguntar sin eco.
  *
  * Y sin esta comprobación, el programa se quedaba esperando una respuesta que
