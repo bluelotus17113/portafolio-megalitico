@@ -1024,10 +1024,29 @@ body.ligero-activo::after {
     padding-bottom: 12px;
   }
 
+  /* El menú se PARTE, no se desplaza.
+     
+     Ya llevaba `overflow-x: auto`, así que técnicamente se podía llegar a los
+     cinco enlaces arrastrando de lado. En la práctica no: en un teléfono de 360
+     el contenido mide 472 px, «Trayectoria» sale cortada a media palabra y
+     «Contacto» no se ve — y nada dice que haya más. Un desplazamiento lateral
+     sin señal no es una función, es un escondite.
+     
+     Partido en dos filas cuestan 36 px más de cabecera fija, que sobre 136 es
+     un precio que se paga a gusto por no esconderle a nadie dos secciones de
+     cinco. */
   .lg-nav {
     order: 3;
     width: 100%;
     margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow-x: visible;
+    row-gap: 2px;
+  }
+
+  .lg-nav__enlace {
+    padding-inline: 10px;
   }
 
   .lg-cabecera__modo {
@@ -1126,4 +1145,29 @@ body.ligero-activo::after {
 .lg-perfil__select option {
   background: #10171b;
   color: #e8eff1;
+}
+
+/* ── Teléfonos estrechos: la cabecera aprieta ─────────────────────────────
+   
+   En una pantalla de 568 px de alto, 169 de cabecera fija son casi un tercio,
+   y lo que queda para leer es una rendija. Aquí no sobra ningún elemento —el
+   nombre, las dos puertas y las cinco secciones hacen falta— así que lo que se
+   recorta es el aire entre ellos, que es lo único que no se echa de menos. */
+
+@media (max-width: 380px) {
+  .lg-cabecera {
+    gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .lg-nav__enlace {
+    padding-block: 5px;
+    padding-inline: 8px;
+    font-size: 0.72rem;
+  }
+
+  .lg-cabecera__modo {
+    padding-block: 7px;
+  }
 }

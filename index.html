@@ -131,8 +131,17 @@
           <button class="menu__mode" type="button" data-action="ligero">
             Versión ligera, sin 3D
           </button>
-          <p class="menu__help">
+          <!-- Dos ayudas, y la que sobra la apaga el CSS por el tipo de puntero.
+               Con una sola, el teléfono leía «Rueda para acercar · Clic en un
+               monumento»: instrucciones para un aparato que no tiene. Y no se
+               resuelve con JavaScript detectando el móvil, que falla con una
+               tableta y un ratón; `pointer: coarse` pregunta lo que importa —
+               si el que señala es un dedo. -->
+          <p class="menu__help" data-puntero="fino">
             Arrastra para girar · Rueda para acercar · Clic en un monumento
+          </p>
+          <p class="menu__help" data-puntero="grueso">
+            Desliza para girar · Pellizca para acercar · Toca un monumento
           </p>
         </div>
       </div>

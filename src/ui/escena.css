@@ -1309,3 +1309,27 @@ to   { opacity: 1; transform: none; }
     display: revert;
   }
 }
+
+/* ── Lo que sobra cuando el que señala es un dedo ─────────────────────────
+   
+   Las teclas del menú y la ayuda de ratón no son un detalle cosmético en un
+   teléfono: son instrucciones para un aparato que no está. Una insignia con
+   una «C» al lado de «Caminar por la isla» promete un atajo que no existe. */
+
+[data-puntero='grueso'] {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  [data-puntero='fino'] {
+    display: none;
+  }
+
+  [data-puntero='grueso'] {
+    display: block;
+  }
+
+  .menu__mode kbd {
+    display: none;
+  }
+}
