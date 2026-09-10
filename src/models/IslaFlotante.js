@@ -368,36 +368,200 @@ function fuenteGrupo(seed) {
 }
 
 /**
- * La lámina de agua.
+ * La lámina de agua del manantial.
  *
- * Aparte de todo lo demás y con su propio material: es lo único de la isla que
- * se mueve, y tenerla suelta es lo que permite animarla sin volver a tocar la
- * geometría.
+ * Con el mismo vocabulario que el mar de abajo, porque es el mismo mundo: red
+ * de cáusticas de Worley, bandas de color por profundidad y espuma de orilla.
+ * Antes era un disco translúcido de un solo tono — correcto y mudo, la clase de
+ * pieza que no se mira dos veces.
+ *
+ * ── Lo que NO se copia del mar ─────────────────────────────────────────────
+ *
+ * El oleaje. Un mar tiene viento y kilómetros; un pilón de tres metros tiene
+ * una piedra en el centro de la que mana. Así que las olas de Gerstner se
+ * cambian por ondas CONCÉNTRICAS que salen del eje, que es lo que hace el agua
+ * cuando brota, y por unas pocas gotas que caen y abren su propio anillo.
+ *
+ * Esas ondas hacen tres trabajos con una sola cuenta: mueven la superficie de
+ * verdad en el vértice, deforman la red de cáusticas del fondo y quiebran el
+ * reflejo. Calcularlas tres veces por separado habría dado tres aguas distintas
+ * superpuestas.
+ *
+ * ── La malla es de anillos, no un abanico ──────────────────────────────────
+ *
+ * `CircleGeometry` es un abanico: todos los triángulos comparten el vértice del
+ * centro y sólo hay vértices en el borde. Con eso el desplazamiento vertical no
+ * tiene dónde ocurrir — el agua se movería sólo en el canto. De ahí el disco de
+ * anillos.
  */
+function discoDeAnillos(radio, anillos, segmentos) {
+  const pos = [];
+  const idx = [];
+  pos.push(0, 0, 0);
+  for (let a = 1; a <= anillos; a++) {
+    const r = (a / anillos) * radio;
+    for (let i = 0; i < segmentos; i++) {
+      const th = (i / segmentos) * Math.PI * 2;
+      pos.push(Math.cos(th) * r, 0, Math.sin(th) * r);
+    }
+  }
+  for (let i = 0; i < segmentos; i++) idx.push(0, 1 + ((i + 1) % segmentos), 1 + i);
+  for (let a = 1; a < anillos; a++) {
+    for (let i = 0; i < segmentos; i++) {
+      const j = (i + 1) % segmentos;
+      const p = 1 + (a - 1) * segmentos;
+      const q = 1 + a * segmentos;
+      idx.push(p + i, q + i, p + j, p + j, q + i, q + j);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+const AGUA_VERTEX = `
+  uniform float uTime;
+  uniform float uRadio;
+  varying vec2 vPos;
+  varying float vAltura;
+
+  // Las mismas ondas que el fragmento, calculadas una vez.
+  float ondas( vec2 p, float t ) {
+    float r = length( p );
+    // El pulso del manantial: anillos que salen del eje.
+    float h = sin( r * 7.5 - t * 2.1 ) * 0.020 * smoothstep( 0.0, 0.5, r );
+    h += sin( r * 15.0 - t * 3.4 ) * 0.008;
+    // Tres gotas, cada una con su sitio y su compás.
+    vec2 g1 = vec2( 0.42, -0.30 );
+    vec2 g2 = vec2( -0.55, 0.18 );
+    vec2 g3 = vec2( 0.10, 0.62 );
+    h += sin( length( p - g1 ) * 22.0 - t * 5.0 ) * 0.006 * exp( -length( p - g1 ) * 1.6 );
+    h += sin( length( p - g2 ) * 19.0 - t * 4.1 ) * 0.005 * exp( -length( p - g2 ) * 1.5 );
+    h += sin( length( p - g3 ) * 25.0 - t * 6.2 ) * 0.004 * exp( -length( p - g3 ) * 1.8 );
+    return h;
+  }
+
+  void main() {
+    vPos = position.xz / uRadio;
+    vAltura = ondas( position.xz, uTime );
+    vec3 p = position;
+    p.y += vAltura;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4( p, 1.0 );
+  }
+`;
+
+const AGUA_FRAGMENT = `
+  uniform float uTime;
+  uniform vec3 uHondo;
+  uniform vec3 uSomero;
+  uniform vec3 uEspuma;
+  uniform vec3 uCaustica;
+  uniform vec3 uBrillo;
+  uniform float uNoche;
+  varying vec2 vPos;
+  varying float vAltura;
+
+  vec2 hash22( vec2 p ) {
+    p = vec2( dot( p, vec2( 127.1, 311.7 ) ), dot( p, vec2( 269.5, 183.3 ) ) );
+    return fract( sin( p ) * 43758.5453 );
+  }
+
+  // Red de cáusticas: distancia al borde entre celdas de Worley, F2 - F1.
+  // F1 solo da manchas redondas; la diferencia es la que da la MALLA.
+  float causticEdge( vec2 p, float t ) {
+    vec2 i = floor( p );
+    vec2 f = fract( p );
+    float d1 = 8.0;
+    float d2 = 8.0;
+    for ( int y = -1; y <= 1; y++ ) {
+      for ( int x = -1; x <= 1; x++ ) {
+        vec2 g = vec2( float( x ), float( y ) );
+        vec2 o = hash22( i + g );
+        o = 0.5 + 0.42 * sin( t * 0.85 + 6.2831 * o );
+        float d = length( g + o - f );
+        if ( d < d1 ) { d2 = d1; d1 = d; }
+        else if ( d < d2 ) { d2 = d; }
+      }
+    }
+    return d2 - d1;
+  }
+
+  void main() {
+    float r = length( vPos );
+    if ( r > 1.0 ) discard;
+
+    // Profundidad: honda en la corona entre el menhir y el brocal, somera en
+    // los dos bordes. Un pilón no es un cuenco liso.
+    float hondura = smoothstep( 0.15, 0.55, r ) * ( 1.0 - smoothstep( 0.72, 1.0, r ) );
+    vec3 color = mix( uSomero, uHondo, hondura * 0.85 );
+
+    // La red del fondo, arrastrada por las ondas de la superficie. Es lo que
+    // hace que el fondo se retuerza en vez de limitarse a desplazarse.
+    // A escala de PILÓN, no de mar. Con 4,6 las celdas de Worley medían medio
+    // metro sobre un charco de tres, así que la red salía como vetas de mármol:
+    // no eran cáusticas, era el mismo patrón mirado demasiado de cerca.
+    vec2 cp = vPos * 13.0 + vAltura * 34.0;
+    float e1 = causticEdge( cp, uTime * 0.9 );
+    float e2 = causticEdge( cp * 2.3 + 3.1, uTime * 1.3 );
+    float red = pow( clamp( e1, 0.0, 1.0 ), 2.2 ) + 0.45 * pow( clamp( e2, 0.0, 1.0 ), 2.6 );
+    // Más marcada donde hay poca agua, que es donde de verdad se ven.
+    red *= mix( 1.0, 0.35, hondura );
+    color += uCaustica * red * 0.55;
+
+    // Espuma de orilla contra el brocal, y en las crestas de las ondas. Recorte
+    // duro y no degradado: la espuma pintada tiene contorno; difuminada se
+    // convierte en niebla.
+    // Un filete contra la piedra, no una banda. Iba de 0,88 a 1,0 —un doce por
+    // ciento del radio, veinte centímetros de espuma en un pilón de tres
+    // metros— y con la cresta de cada onda encendida por encima: el agua salía
+    // con un aro blanco de plástico y anillos de nata.
+    float orilla = smoothstep( 0.945, 1.0, r );
+    float cresta = smoothstep( 0.017, 0.025, vAltura );
+    float espuma = smoothstep( 0.4, 0.7, orilla * 0.95 + cresta * 0.35 );
+    color = mix( color, uEspuma, espuma * 0.55 );
+
+    // De noche el manantial es lo único que alumbra ahí arriba, y alumbra en
+    // ARCANO. Sumando el color de las cáusticas —que es casi blanco— el pilón
+    // se convertía en una caja de luz: brillaba, pero podría haber sido una
+    // farola. Lo que tiene que decir es que el agua es de otro mundo.
+    color += uBrillo * uNoche * ( 0.14 + red * 0.42 );
+
+    // Más opaca en el centro y más translúcida en el canto: así se adivina la
+    // piedra del fondo junto al brocal y no parece una tapa.
+    // Se tiene que adivinar la piedra del fondo: opaca del todo es una tapa.
+    float alfa = mix( 0.7, 0.42, smoothstep( 0.5, 1.0, r ) );
+    gl_FragColor = vec4( color, alfa );
+    #include <colorspace_fragment>
+  }
+`;
+
 function aguaMesh() {
-  // Del color del mar del mundo, no de un cian de rotulador. La primera versión
-  // usaba `arcane` a opacidad 0,72 y salía un disco de plástico turquesa que se
-  // veía desde media isla; y estaba tan alta que asomaba POR ENCIMA del brocal,
-  // que es exactamente lo que el agua no hace.
-  const mat = new THREE.MeshStandardMaterial({
-    color: PALETTE.oceanShallow,
+  const RADIO = FUENTE_RADIO - 0.62;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uRadio: { value: RADIO },
+      uHondo: { value: new THREE.Color(PALETTE.oceanDeep) },
+      uSomero: { value: new THREE.Color(PALETTE.oceanShallow) },
+      uEspuma: { value: new THREE.Color(PALETTE.foam) },
+      uCaustica: { value: new THREE.Color(PALETTE.caustic) },
+      uBrillo: { value: new THREE.Color(PALETTE.arcane) },
+      uNoche: { value: 0 },
+    },
+    vertexShader: AGUA_VERTEX,
+    fragmentShader: AGUA_FRAGMENT,
     transparent: true,
-    opacity: 0.5,
-    roughness: 0.08,
-    metalness: 0.15,
-    emissive: PALETTE.arcaneDeep,
-    emissiveIntensity: 0.07,
+    depthWrite: false,
+    side: THREE.DoubleSide,
   });
-  const m = new THREE.Mesh(new THREE.CircleGeometry(FUENTE_RADIO - 0.62, 48).rotateX(-Math.PI / 2), mat);
+  const m = new THREE.Mesh(discoDeAnillos(RADIO, 14, 56), mat);
   m.name = 'fuente-agua';
-  m.userData.brilloBase = mat.emissiveIntensity;
-  // Los sillares del brocal arrancan en 0 y miden 0,86: la lámina va MUY por
-  // debajo de su coronación, o no hay pilón, hay charco.
   m.position.y = 0.26;
   m.renderOrder = 2;
   return m;
 }
-
 
 /**
  * El arbolado de la cubierta.
@@ -909,12 +1073,15 @@ export function islaWalkways(centro, base, { margen = 1.4 } = {}) {
  * @param {THREE.Group} isla
  * @param {number} noche  0 de día, 1 de noche.
  */
-export function prenderFuente(isla, noche) {
+export function prenderFuente(isla, noche, dt = 0) {
   const n = isla?.userData?.nocturno;
   if (!n) return;
   const k = Math.min(1, Math.max(0, noche));
-  n.agua.material.emissiveIntensity = n.agua.userData.brilloBase + k * 0.85;
-  n.agua.material.opacity = 0.5 + k * 0.28;
+  const u = n.agua.material.uniforms;
+  // El agua corre siempre: es lo único que se mueve ahí arriba, y una fuente
+  // quieta es un charco.
+  u.uTime.value += dt;
+  u.uNoche.value = k;
   n.luz.intensity = k * 16;
   // La nube también. Un cúmulo blanco a plena opacidad sobre un mar nocturno se
   // lee como un agujero en la pantalla.
@@ -925,3 +1092,4 @@ export function prenderFuente(isla, noche) {
     }
   }
 }
+

@@ -86,6 +86,7 @@ const vistas = [
   ['escalinata', e ? e.medio : sitio.isla, 52, 2.05, 1.32],
   ['isla', sitio.isla, 44, 2.35, 1.44],
   ['cubierta', sitio.isla, 27, 0.6, 0.95],
+  ['fuente', sitio.isla, 9, 1.7, 1.05],
 ];
 for (const [nombre, objetivo, dist, az, pol] of vistas) {
   await p.evaluate(
@@ -108,7 +109,7 @@ await p.evaluate(() => {
   if (b) b.click();
 });
 await new Promise((r) => setTimeout(r, 3000));
-for (const [nombre, objetivo, dist, az, pol] of vistas.slice(0, 2)) {
+for (const [nombre, objetivo, dist, az, pol] of vistas.filter((v) => v[0] === 'ascenso' || v[0] === 'fuente')) {
   await p.evaluate(
     ({ c, dist, az, pol }) => {
       const r = window.__portfolio.rig;

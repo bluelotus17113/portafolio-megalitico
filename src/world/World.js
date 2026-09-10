@@ -1067,7 +1067,7 @@ export class World {
     if (this.time) {
       // Y el manantial de la isla flotante, por lo mismo que las velas.
       const exp = Object.values(this.shrines || {}).find((sh) => sh?.isla);
-      if (exp) prenderFuente(exp.isla, this.time.value.noche ?? 0);
+      if (exp) prenderFuente(exp.isla, this.time.value.noche ?? 0, dt);
     }
 
     if (this.espiritus) {

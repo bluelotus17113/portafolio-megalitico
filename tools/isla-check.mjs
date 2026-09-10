@@ -316,7 +316,7 @@ const m = await page.evaluate(async () => {
   // ── El manantial se enciende de noche ──────────────────────────────────
   const n = isla.userData?.nocturno;
   if (n) {
-    const antes = { luz: n.luz.intensity, brillo: n.agua.material.emissiveIntensity };
+    const antes = { luz: n.luz.intensity, brillo: n.agua.material.uniforms.uNoche.value };
     // Se llama a la función de verdad, no se imita: `world.update` pide un
     // contexto entero que aquí no hay, y montarlo a mano probaría el montaje.
     const mod = await import('/src/models/IslaFlotante.js');
@@ -325,7 +325,7 @@ const m = await page.evaluate(async () => {
       luzDeDia: +antes.luz.toFixed(2),
       luzDeNoche: +n.luz.intensity.toFixed(2),
       brilloDeDia: +antes.brillo.toFixed(2),
-      brilloDeNoche: +n.agua.material.emissiveIntensity.toFixed(2),
+      brilloDeNoche: +n.agua.material.uniforms.uNoche.value.toFixed(2),
     };
   } else o.noche = null;
 
@@ -594,6 +594,47 @@ if (verde.isla !== null && verde.prado !== null) {
     `isla ${verde.isla} · prado ${verde.prado} · difieren ${d}`
   );
 }
+
+// Que el agua CORRA, medido contra el reloj del MUNDO y no contra el de pared.
+//
+// Una fuente parada es un charco, y un manantial congelado no se distingue de
+// uno que fluye en una captura fija: hay que mirarlo dos veces.
+//
+// El primer intento comparaba contra segundos reales y fallaba: el agua avanzaba
+// 0,15 s en 2 s de pared y parecía rota. No lo estaba — en headless con
+// SwiftShader el mundo ENTERO va a un 7 % de velocidad, así que el reloj del
+// mundo avanzaba exactamente lo mismo. La afirmación no era «el agua avanza N
+// segundos»; era «el agua avanza AL MISMO RITMO que todo lo demás», y esa no
+// depende de lo rápido que sea la máquina que ejecuta la prueba.
+const relojes = () =>
+  page.evaluate(() => {
+    const ex = window.__portfolio;
+    let isla = null;
+    ex.scene.traverse((n) => {
+      if (n.name === 'isla-flotante') isla = n;
+    });
+    return {
+      mundo: ex.world.elapsed,
+      agua: isla?.userData?.nocturno?.agua?.material?.uniforms?.uTime?.value ?? null,
+    };
+  });
+// Se EMPUJAN fotogramas en vez de esperar por reloj de pared: a estas alturas
+// la prueba lleva miles de rayos encima y el mundo avanzaba 0,04 s en dos
+// segundos y medio, lo bastante poco como para que la comparación no dijera
+// nada.
+const r0 = await relojes();
+await page.evaluate(async () => {
+  for (let i = 0; i < 40; i++) await new Promise((r) => requestAnimationFrame(r));
+});
+const r1 = await relojes();
+const dMundo = r1.mundo - r0.mundo;
+const dAgua = r1.agua === null || r0.agua === null ? null : r1.agua - r0.agua;
+comprobar(dMundo > 0.15, 'El mundo avanza durante la prueba, así que la medida vale algo', `${dMundo.toFixed(2)} s en 40 fotogramas`);
+comprobar(
+  dAgua !== null && Math.abs(dAgua - dMundo) < 0.02,
+  'Y el agua corre al mismo ritmo: el manantial no se queda parado',
+  `mundo +${dMundo.toFixed(2)} · agua +${dAgua === null ? '?' : dAgua.toFixed(2)}`
+);
 
 comprobar(errores.length === 0, 'Sin errores en consola', errores.slice(0, 2).join(' | '));
 
