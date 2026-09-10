@@ -435,6 +435,166 @@ if (m.error) {
   );
 }
 
+// ── El verde de la cubierta contra el del prado, medido en píxeles ─────────
+//
+// Que el césped comparta el material y los uniformes de la hora dice que puede
+// virar; no dice que el TONO elegido case. Eso sólo se sabe mirando lo que sale
+// por pantalla, y no a ojo: el ojo en una captura compara dos verdes con luces
+// distintas y se rinde.
+//
+// Se miden los dos en EL MISMO fotograma, para que compartan sol, exposición y
+// posprocesado, y sólo sobre trozos igual de llanos: una ladera vuelta hacia el
+// sol es más clara que un llano y no por su color, así que sin igualar la
+// inclinación se estaría midiendo la topografía. Sin ese filtro la diferencia
+// salía 18 y con él 13; cinco puntos eran monte.
+//
+// Y sólo a MEDIODÍA. De noche la medida oscila entre 3 y 7 entre pasadas —la
+// luz del propio manantial cae sobre la hierba y las motas se mueven— así que
+// no separa nada. A mediodía repite 4 y 4.
+//
+// El umbral sale de medir los dos casos, no de redondear: 1 con el tono actual
+// —y repite 1 entre pasadas—, 10 con el que tenía hace un rato y 18 con el que
+// hacía cantar a la isla. 9 los separa con ocho puntos de margen por arriba del
+// caso bueno.
+await page.evaluate(() => {
+  const b = [...document.querySelectorAll('button')].find(
+    (e) => (e.textContent || '').trim().toUpperCase() === 'MEDIODÍA'
+  );
+  if (b) b.click();
+});
+await new Promise((r) => setTimeout(r, 2600));
+
+const sitio = await page.evaluate(() => {
+  const ex = window.__portfolio;
+  const sec = Object.values(ex.world.shrines || {}).find((s) => s.planEscalinata);
+  const c = sec.localToWorldXZ(sec.islaLocal.x, sec.islaLocal.z);
+  const cubierta = sec.cotaCubierta + sec.group.position.y;
+  const rig = ex.rig;
+  rig.idleDrift = false;
+  rig.target.set(c.x * 0.55, cubierta - 14, c.z * 0.55);
+  rig.distance = 120;
+  rig.azimuth = 1.1;
+  rig.polar = 0.85;
+  return { cx: c.x, cz: c.z, cubierta };
+});
+await new Promise((r) => setTimeout(r, 2400));
+
+const verde = await page.evaluate(({ cx, cz, cubierta }) => {
+  const ex = window.__portfolio;
+  const cam = ex.camera;
+  const gl = ex.renderer.getContext();
+  const campo = ex.world.field;
+  const V = cam.position.constructor;
+  const w = gl.drawingBufferWidth;
+  const h = gl.drawingBufferHeight;
+  ex.renderer.render(ex.scene, cam);
+  const pix = new Uint8Array(4);
+  // El raycaster se toma prestado del que la app ya usa para los puntos
+  // interactivos: `import('three')` desde aquí no resuelve —Vite reescribe los
+  // imports de los módulos que sirve, no los de un evaluate suelto— y montar
+  // uno a mano habría sido reimplementar la intersección.
+  const rayo = ex.interaction.raycaster;
+  // Su alcance está recortado para los puntos interactivos; aquí se mide desde
+  // ciento veinte metros.
+  rayo.near = 0;
+  rayo.far = Infinity;
+  if (rayo.layers) rayo.layers.enableAll();
+  const tocados = {};
+
+  // El píxel sólo cuenta si lo que hay ahí es LA HIERBA.
+  //
+  // Sin esto la medida no medía nada. Los puntos se elegían por coordenada y se
+  // leía el color que hubiera; desde que la cubierta tiene matorral, cantos y
+  // una senda de losas, buena parte de esos puntos caen sobre una mata o una
+  // piedra, cuyo color no depende del tono del césped. Con el tono viejo —el
+  // que cantaba— la prueba daba 2 de diferencia en vez de 13: pasaba, y no
+  // porque el color estuviera bien.
+  //
+  // Se tira un rayo desde la cámara y se acepta el punto sólo si lo primero que
+  // encuentra es la malla que se quiere medir.
+  const leerSi = (x, y, z, nombre) => {
+    const v = new V(x, y, z).project(cam);
+    if (Math.abs(v.x) > 0.98 || Math.abs(v.y) > 0.98 || v.z > 1) return null;
+    // `setFromCamera` sólo lee `.x` y `.y`: un objeto llano vale.
+    rayo.setFromCamera({ x: v.x, y: v.y }, cam);
+    const choques = rayo.intersectObjects(ex.scene.children, true);
+    // La cúpula del cielo va centrada en la cámara, así que sale la PRIMERA en
+    // distancia y tapa todo lo demás; igual el mar, las motas y las vetas de
+    // luz, que no son superficie sobre la que se pise nada.
+    const NO_ES_SUELO = /^(sky|ocean|motes|birds|ley|label|rotulo|holo|beacon|pulse|smoke|fire|isla-nube)/;
+    const primero = choques.find(
+      (c) => c.object.visible && c.object.isMesh && !NO_ES_SUELO.test(c.object.name || '')
+    );
+    const q = primero ? primero.object.name || '(sin nombre)' : '(nada)';
+    tocados[q] = (tocados[q] || 0) + 1;
+    if (!primero || primero.object.name !== nombre) return null;
+    gl.readPixels(
+      Math.round((v.x * 0.5 + 0.5) * w),
+      Math.round((v.y * 0.5 + 0.5) * h),
+      1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pix
+    );
+    return [pix[0], pix[1], pix[2]];
+  };
+  const mediana = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+  const luz = (l) => {
+    const v = l.filter(Boolean);
+    if (!v.length) return null;
+    return (
+      0.2126 * mediana(v.map((c) => c[0])) +
+      0.7152 * mediana(v.map((c) => c[1])) +
+      0.0722 * mediana(v.map((c) => c[2]))
+    );
+  };
+  const normalY = (x, z) => {
+    const d = 1.2;
+    const hx = (campo.height(x + d, z) - campo.height(x - d, z)) / (2 * d);
+    const hz = (campo.height(x, z + d) - campo.height(x, z - d)) / (2 * d);
+    return 1 / Math.sqrt(hx * hx + hz * hz + 1);
+  };
+
+  const isla = [];
+  for (let i = 0; i < 140; i++) {
+    const th = (i / 140) * Math.PI * 2 * 5;
+    const rad = 5 + (i % 9) * 1.1;
+    isla.push(leerSi(cx + Math.cos(th) * rad, cubierta + 0.15, cz + Math.sin(th) * rad, 'isla-cesped'));
+  }
+  const prado = [];
+  for (let i = 0; i < 220; i++) {
+    const th = ((i / 220) * Math.PI * 2 * 7);
+    const rad = 14 + (i % 11) * 4;
+    const x = cx * 0.45 + Math.cos(th) * rad;
+    const z = cz * 0.45 + Math.sin(th) * rad;
+    if (normalY(x, z) < 0.985) continue;
+    prado.push(leerSi(x, campo.height(x, z) + 0.12, z, 'terrain'));
+  }
+  const a = luz(isla);
+  const b = luz(prado);
+  return {
+    isla: a === null ? null : +a.toFixed(0),
+    prado: b === null ? null : +b.toFixed(0),
+    muestras: { isla: isla.filter(Boolean).length, prado: prado.filter(Boolean).length },
+    tocados: Object.entries(tocados).sort((a, b) => b[1] - a[1]).slice(0, 8),
+  };
+}, sitio);
+
+console.log('\n  y el verde casa con el del mundo');
+comprobar(
+  verde.isla !== null && verde.prado !== null && verde.muestras.prado > 20 && verde.muestras.isla > 10,
+  'Hay prado llano de sobra con el que comparar',
+  `${verde.muestras.isla} de isla, ${verde.muestras.prado} de prado` +
+    (verde.muestras.isla + verde.muestras.prado === 0
+      ? ` · el rayo toca: ${(verde.tocados || []).map(([n, c]) => `${n}×${c}`).join(', ')}`
+      : '')
+);
+if (verde.isla !== null && verde.prado !== null) {
+  const d = Math.abs(verde.isla - verde.prado);
+  comprobar(
+    d < 9,
+    'La cubierta no es más clara que el prado a plena luz',
+    `isla ${verde.isla} · prado ${verde.prado} · difieren ${d}`
+  );
+}
+
 comprobar(errores.length === 0, 'Sin errores en consola', errores.slice(0, 2).join(' | '));
 
 await browser.close();

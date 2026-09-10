@@ -284,7 +284,7 @@ function cespedGeometry(seed) {
     // claro salía un verde plano de fieltro que no era de este mundo: el prado
     // de la isla grande tiene manchas de los dos tonos, no un color medio.
     const t =
-      0.33 +
+      0.16 +
       ruido.noise3(pos[i] * 0.14, 3.7, pos[i + 2] * 0.14) * 0.34 +
       ruido.noise3(pos[i] * 0.52, 9.1, pos[i + 2] * 0.52) * 0.18;
     mezcla.copy(oscuro).lerp(claro, Math.min(1, Math.max(0, t)));
