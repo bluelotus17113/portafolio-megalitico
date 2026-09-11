@@ -193,7 +193,9 @@
   .cv__hito,
   .cv__familia {
     display: grid;
-    grid-template-columns: 30mm 1fr;
+    /* 34, no 30: con 30 el periodo más largo —«abr. 2025 — sep. 2026»— se
+       partía por la mitad y dejaba el año solo en la línea de abajo. */
+    grid-template-columns: 34mm 1fr;
     gap: 5mm;
     /* Partir una etapa por la mitad deja el puesto en una página y lo que
        hiciste en otra. */

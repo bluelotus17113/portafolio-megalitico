@@ -96,7 +96,13 @@ export function hojaDeVidaHTML(perfilElegido = null) {
  */
 function cabecera(d) {
   const canales = (d.contacto.links ?? [])
-    .filter((l) => tieneValor(l.value))
+    // Y con dirección DE VERDAD.
+    //
+    // «LinkedIn usuario» se estaba imprimiendo en el PDF: el filtro descartaba
+    // los guiones de relleno pero no un marcador con forma de nombre. Un canal
+    // sin dirección que funcione no es un canal — es una promesa rota impresa
+    // en papel, y quien la lea va a pensar que se te olvidó.
+    .filter((l) => tieneValor(l.value) && tieneValor(l.href))
     .map((l) => {
       const texto = `${esc(l.label)} <span class="cv__valor">${esc(l.value)}</span>`;
       return l.href
@@ -125,8 +131,22 @@ function cabecera(d) {
     </header>`;
 }
 
+/**
+ * El perfil, con su propio texto para el papel.
+ *
+ * El «Sobre mí» de la isla y el perfil de un currículo hacen trabajos
+ * distintos, y por eso no pueden ser el mismo texto. En la isla quien lee ya ha
+ * decidido pararse delante de la estela: se le puede contar en dos párrafos que
+ * eliges la herramienta después de entender el encargo. En un currículo nadie
+ * lee — se barre —, y ochocientos caracteres de prosa en la primera sección son
+ * ochocientos caracteres que empujan la experiencia a la página siguiente.
+ *
+ * `perfil.resumenHoja` es la versión corta. Si no está, se usa la larga: nadie
+ * se queda sin perfil por no haber escrito dos textos.
+ */
 function perfil(d) {
-  const parrafos = (d.perfil.body ?? []).map((p) => `<p>${esc(p)}</p>`).join('');
+  const cuerpo = d.perfil.resumenHoja?.length ? d.perfil.resumenHoja : d.perfil.body;
+  const parrafos = (cuerpo ?? []).map((p) => `<p>${esc(p)}</p>`).join('');
   const fichas = (d.perfil.facts ?? [])
     .filter((f) => tieneValor(f.value))
     .map((f) => `<div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`)
@@ -214,6 +234,26 @@ function habilidades(d) {
   return bloque('Habilidades', `<dl class="cv__habilidades">${filas}</dl>`);
 }
 
+/**
+ * El resumen de un proyecto, recortado para el papel.
+ *
+ * Los del portafolio miden trescientos caracteres y están bien escritos para
+ * la isla, donde quien lee ha decidido pararse delante de esa piedra. En un
+ * currículo no: siete proyectos a ese tamaño ocupaban DOS PÁGINAS de tres, y
+ * quien mira un currículo no lee, barre.
+ *
+ * Se prefiere `cv` si está puesto —una línea escrita a mano para esto— y si no
+ * se coge la primera frase. No es un truncado a un número de caracteres, que
+ * corta a mitad de palabra y deja puntos suspensivos: es una frase entera, que
+ * en estos resúmenes es justo la que dice qué es la cosa.
+ */
+function resumenDeProyecto(p) {
+  if (tieneValor(p.cv)) return p.cv.trim();
+  if (!tieneValor(p.summary)) return '';
+  const primera = p.summary.match(/^.*?[.:](?=\s|$)/);
+  return (primera ? primera[0] : p.summary).trim();
+}
+
 function proyectos(d) {
   if (!d.proyectos?.length) return '';
   const fichas = d.proyectos.map((p) => {
@@ -230,7 +270,7 @@ function proyectos(d) {
     return `
       <li class="cv__proyecto">
         <h3 class="cv__titulo">${esc(p.title)}${meta ? ` <span class="cv__meta">${meta}</span>` : ''}</h3>
-        ${p.summary ? `<p>${esc(p.summary)}</p>` : ''}
+        ${resumenDeProyecto(p) ? `<p>${esc(resumenDeProyecto(p))}</p>` : ''}
         ${pila}
         ${enlace}
       </li>`;

@@ -25,6 +25,10 @@
         "label": "Enfoque",
         "value": "—"
       }
+    ],
+    "resumenHoja": [
+      "Desarrollo soluciones a medida: alguien llega con un problema y se lo entrego funcionando — análisis, código, despliegue y lo que haga falta por el camino.",
+      "Videojuegos en Godot 4 y Unity 6, web con JavaScript y Three.js, apps Android con React y Capacitor, automatización en Python. Elijo la herramienta después de entender el encargo, no antes. Desde 2020 desarrollo juegos con Tote Role, un equipo indie de cinco personas."
     ]
   },
   "proyectos": [

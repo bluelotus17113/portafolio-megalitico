@@ -136,9 +136,40 @@ comprobar(
   'Con el estado de cada uno escrito',
   estados.join(' / ')
 );
-const canales = (CONTACT.links ?? []).map((l) => l.value).filter(Boolean);
-comprobar(falta(canales).length === 0, 'Y los canales de contacto', falta(canales).join(', '));
-comprobar(falta(ABOUT.body ?? []).length === 0, 'El texto de presentación entero');
+// Los canales CON dirección salen; los que sólo tienen un marcador, no.
+//
+// Antes se exigía que salieran todos, y por eso «LinkedIn usuario» se imprimía
+// en el PDF con la bendición de la prueba: la afirmación era «está lo que hay
+// en el contenido» cuando la que importa es «está lo que sirve». Un canal sin
+// dirección que funcione no es un canal, es una promesa rota impresa en papel.
+const conDireccion = (CONTACT.links ?? []).filter((l) => l.value && l.href);
+const sinDireccion = (CONTACT.links ?? []).filter((l) => l.value && !l.href);
+comprobar(
+  falta(conDireccion.map((l) => l.value)).length === 0,
+  `Y los ${conDireccion.length} canales que llevan a algún sitio`,
+  falta(conDireccion.map((l) => l.value)).join(', ')
+);
+const colados = sinDireccion.filter((l) => texto.includes(l.value));
+comprobar(
+  colados.length === 0,
+  'Y ninguno a medio rellenar se cuela en el papel',
+  colados.map((l) => `${l.label}: ${l.value}`).join(', ')
+);
+// El perfil del PAPEL, que no es el de la isla.
+//
+// Antes se exigía el texto largo entero. Dejó de ser lo correcto en cuanto la
+// hoja tuvo el suyo: los dos hacen trabajos distintos —en la isla quien lee ya
+// se ha parado, en un currículo se barre— y exigir el largo obligaba a
+// imprimir ochocientos caracteres de prosa que empujaban la experiencia a la
+// página siguiente.
+const presentacion = ABOUT.resumenHoja?.length ? ABOUT.resumenHoja : ABOUT.body;
+comprobar(falta(presentacion ?? []).length === 0, 'El texto de presentación del papel, entero');
+if (ABOUT.resumenHoja?.length) {
+  comprobar(
+    falta(ABOUT.body ?? []).length > 0,
+    '  y el largo de la isla NO se imprime: son dos textos, no uno repetido'
+  );
+}
 
 // ── 4. Orden de currículo, no de portafolio ────────────────────────────────
 const orden = await page.evaluate(() => {

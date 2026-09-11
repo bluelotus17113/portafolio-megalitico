@@ -386,10 +386,19 @@ export class Admin {
         area({
           ruta: 'perfil.body',
           tipo: 'parrafos',
-          etiqueta: 'Texto',
+          etiqueta: 'Texto (isla y web)',
           valor: (d.body ?? []).join('\n\n'),
           filas: 10,
           ayuda: 'Una línea en blanco separa un párrafo del siguiente.',
+        }),
+        area({
+          ruta: 'perfil.resumenHoja',
+          tipo: 'parrafos',
+          etiqueta: 'Texto para la hoja de vida',
+          valor: (d.resumenHoja ?? []).join('\n\n'),
+          filas: 5,
+          ayuda:
+            'La versión corta, sólo para el PDF. En la isla quien lee ya se ha parado; en un currículo se barre, y cada párrafo de más empuja la experiencia a la página siguiente. Vacío = se usa el de arriba.',
         }),
       ]) +
       lista({
@@ -425,6 +434,12 @@ export class Admin {
           ancho: 'corto',
         }),
         area({ ruta: `proyectos.${i}.summary`, etiqueta: 'Resumen', valor: p.summary, filas: 3 }),
+        campo({
+          ruta: `proyectos.${i}.cv`,
+          etiqueta: 'Una línea para la hoja de vida',
+          valor: p.cv,
+          ayuda: 'Vacío = se usa la primera frase del resumen.',
+        }),
         campo({
           ruta: `proyectos.${i}.stack`,
           tipo: 'lista',
@@ -893,7 +908,7 @@ export class Admin {
 function estructurar(origen) {
   const d = structuredClone(origen);
   d.identidad = { name: '', role: '', oghamMotto: '', foto: null, ...d.identidad };
-  d.perfil = { title: '', subtitle: '', body: [], facts: [], ...d.perfil };
+  d.perfil = { title: '', subtitle: '', body: [], resumenHoja: [], facts: [], ...d.perfil };
   d.contacto = { title: '', subtitle: '', intro: '', links: [], endpoint: null, ...d.contacto };
   d.proyectos = (d.proyectos ?? []).map((p, i) => ({
     id: p.id ?? `p${i + 1}`,
@@ -976,6 +991,7 @@ function nuevoDe(ruta, arr) {
         tag: '',
         year: '',
         summary: '',
+        cv: '',
         stack: [],
         url: null,
         // Un proyecto se añade cuando se empieza, no cuando se acaba.
