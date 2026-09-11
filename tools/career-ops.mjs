@@ -169,9 +169,15 @@ location:
   country: ${cita(pais || '')}
   city: ${cita(ciudad || '')}
   timezone: "America/Bogota"
-  visa_status: ""                ${FALTA}
+  # Esto se deduce de la ubicación, no hace falta preguntarlo: quien vive y
+  # trabaja en su propio país no necesita que nadie le patrocine nada.
+  visa_status: ${cita(`Ciudadano de ${pais || 'su país'}; autorizado para trabajar allí sin patrocinio`)}
   authorized_in: [${cita(pais || '')}]
-  needs_sponsorship: true
+  # FALSO, no verdadero. Lo tenía al revés y no es un detalle: con `true`,
+  # career-ops marca cada oferta local como «necesita patrocinio» y las puntúa
+  # peor o las descarta. Una casilla mal puesta que descarta ofertas buenas sin
+  # decir por qué es peor que un hueco vacío, porque el hueco se ve.
+  needs_sponsorship: false
 
 language:
   output: es
