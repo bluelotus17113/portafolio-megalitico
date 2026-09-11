@@ -172,6 +172,47 @@ export function editorPlugin({
         }
       });
 
+      /**
+       * El registro de candidaturas, que NO es un fichero nuestro.
+       *
+       * Es la tabla de career-ops, y se escribe en su formato a propósito: es
+       * lo que permite que las dos herramientas compartan un solo registro en
+       * vez de llevar cada una el suyo. Dos registros es la peor opción — el
+       * día que apuntes una entrevista en uno y no en el otro, el que consultes
+       * te dará una respuesta y no sabrás cuál.
+       */
+      server.middlewares.use('/__editor/candidaturas', async (req, res, next) => {
+        const { leer, escribir, aCSV } = await import('./candidaturas.mjs');
+        if (req.method === 'GET') {
+          try {
+            return responder(res, 200, { ok: true, ...leer() });
+          } catch (e) {
+            return responder(res, 500, { ok: false, error: String(e.message ?? e) });
+          }
+        }
+        if (req.method === 'POST') {
+          try {
+            const datos = await leerJson(req);
+            if (!Array.isArray(datos.filas)) {
+              return responder(res, 400, { ok: false, error: '«filas» tiene que ser una lista' });
+            }
+            const actual = leer();
+            escribir({ preambulo: actual.preambulo, filas: datos.filas });
+            // El CSV se regenera con cada guardado: si hay que acordarse de
+            // exportarlo, el día que lo abras estará viejo y no lo sabrás.
+            const { writeFileSync } = await import('node:fs');
+            writeFileSync('carrera/candidaturas.csv', aCSV({ filas: datos.filas }));
+            server.config.logger.info(
+              `[panel] candidaturas guardadas · ${datos.filas.length} fila(s), y el CSV al día`
+            );
+            return responder(res, 200, { ok: true, filas: datos.filas.length });
+          } catch (e) {
+            return responder(res, 500, { ok: false, error: String(e.message ?? e) });
+          }
+        }
+        return next();
+      });
+
       server.middlewares.use('/__editor/contenido', async (req, res, next) => {
         if (req.method === 'GET') {
           try {

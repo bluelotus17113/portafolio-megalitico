@@ -49,6 +49,19 @@ import './admin.css';
 const RUTA = import.meta.env.DEV ? '/__editor/contenido' : '/api/contenido';
 const METODO = import.meta.env.DEV ? 'POST' : 'PUT';
 const RUTA_RETRATO = import.meta.env.DEV ? '/__editor/retrato' : '/api/retrato';
+const RUTA_CANDIDATURAS = import.meta.env.DEV ? '/__editor/candidaturas' : '/api/candidaturas';
+
+/** Los estados de career-ops, no unos propios que se les parezcan. */
+const ESTADOS_CANDIDATURA = [
+  'Evaluated',
+  'Applied',
+  'Responded',
+  'Interview',
+  'Offer',
+  'Rejected',
+  'Discarded',
+  'SKIP',
+];
 
 const SECCIONES = [
   { id: 'identidad', label: 'Identidad' },
@@ -59,6 +72,7 @@ const SECCIONES = [
   { id: 'trayectoria', label: 'Trayectoria' },
   { id: 'formacion', label: 'Formación' },
   { id: 'contacto', label: 'Contacto' },
+  { id: 'candidaturas', label: 'Candidaturas' },
 ];
 
 export class Admin {
@@ -205,6 +219,8 @@ export class Admin {
         return this._trayectoria();
       case 'formacion':
         return this._formacion();
+      case 'candidaturas':
+        return this._candidaturas();
       default:
         return this._contacto();
     }
@@ -532,6 +548,83 @@ export class Admin {
     });
   }
 
+  /**
+   * Dónde has echado el currículo.
+   *
+   * Estos datos NO viven en `contenido.json`: viven en la tabla de career-ops,
+   * y se escriben en su formato a propósito. Es lo que permite que las dos
+   * herramientas compartan un solo registro en vez de llevar cada una el suyo
+   * — y dos registros es la peor opción posible, porque el día que apuntes una
+   * entrevista en uno y no en el otro, el que consultes te dará una respuesta y
+   * no sabrás cuál.
+   *
+   * Por eso también tienen su propio botón de guardar: son otro fichero, y un
+   * guardado que mezclara las dos cosas commitearía contenido del portafolio
+   * cada vez que cambias el estado de una candidatura.
+   */
+  _candidaturas() {
+    if (!this.candidaturas) {
+      this._cargarCandidaturas();
+      return grupo('Candidaturas', 'Leyendo el registro…', []);
+    }
+    const filas = this.candidaturas;
+    const opciones = (actual) =>
+      ESTADOS_CANDIDATURA.map(
+        (e) => `<option value="${e}"${e === actual ? ' selected' : ''}>${e}</option>`
+      ).join('');
+
+    const cuerpo = filas.length
+      ? filas
+          .map(
+            (f, i) => `
+        <tr>
+          <td class="ad__cnum">${esc(f['#'])}</td>
+          <td><input type="date" data-cand="${i}" data-col="Date" value="${esc(f.Date)}" /></td>
+          <td><input data-cand="${i}" data-col="Company" value="${esc(f.Company)}" placeholder="Empresa" /></td>
+          <td><input data-cand="${i}" data-col="Role" value="${esc(f.Role)}" placeholder="Puesto" /></td>
+          <td><select data-cand="${i}" data-col="Status">${opciones(f.Status)}</select></td>
+          <td><input data-cand="${i}" data-col="Notes" value="${esc(f.Notes)}" placeholder="Notas" /></td>
+          <td><button type="button" class="ad__quitar" data-cand-borrar="${i}" title="Quitar">✕</button></td>
+        </tr>`
+          )
+          .join('')
+      : `<tr><td colspan="7" class="ad__vacio">Todavía no has apuntado ninguna.</td></tr>`;
+
+    return `
+      <section class="ad__grupo">
+        <h2 class="ad__titulo">Candidaturas</h2>
+        <p class="ad__ayuda">
+          El mismo registro que lee career-ops. Se guarda aparte del contenido del
+          portafolio, y cada vez que guardas se regenera también
+          <code>carrera/candidaturas.csv</code>, que Excel abre con doble clic.
+        </p>
+        <div class="ad__tablaenv">
+          <table class="ad__tabla">
+            <thead>
+              <tr><th>#</th><th>Fecha</th><th>Empresa</th><th>Puesto</th><th>Estado</th><th>Notas</th><th></th></tr>
+            </thead>
+            <tbody>${cuerpo}</tbody>
+          </table>
+        </div>
+        <div class="ad__acciones">
+          <button type="button" class="ad__boton" data-cand-anadir>Apuntar una candidatura</button>
+          <button type="button" class="ad__boton ad__boton--fuerte" data-cand-guardar>Guardar el registro</button>
+          <span class="ad__nota" data-cand-nota></span>
+        </div>
+      </section>`;
+  }
+
+  async _cargarCandidaturas() {
+    try {
+      const res = await fetch(RUTA_CANDIDATURAS);
+      const cuerpo = await res.json();
+      this.candidaturas = Array.isArray(cuerpo.filas) ? cuerpo.filas : [];
+    } catch {
+      this.candidaturas = [];
+    }
+    if (this.seccion === 'candidaturas') this._repintarHoja();
+  }
+
   _contacto() {
     const d = this.datos.contacto;
     return (
@@ -573,6 +666,18 @@ export class Admin {
 
   _enlazar() {
     // Escribir: al estado y punto. Ver la nota 1 del cabecero.
+    // Las celdas del registro escriben directamente en su lista, sin repintar:
+    // repintar mientras escribes te quita el foco del campo a cada letra.
+    const celda = (e) => {
+      const el = e.target.closest('[data-cand]');
+      if (!el || !this.candidaturas) return false;
+      const fila = this.candidaturas[Number(el.dataset.cand)];
+      if (fila) fila[el.dataset.col] = el.value;
+      return true;
+    };
+    this.caja.addEventListener('input', (e) => celda(e));
+    this.caja.addEventListener('change', (e) => celda(e));
+
     this.caja.addEventListener('input', (e) => {
       const el = e.target.closest('[data-ruta]');
       if (!el) return;
@@ -692,6 +797,28 @@ export class Admin {
         return;
       }
       if (boton.dataset.ver) return this._ver(boton.dataset.ver);
+      // ── Candidaturas: otro fichero, otro botón de guardar ──────────────
+      if (boton.hasAttribute('data-cand-anadir')) {
+        const nums = (this.candidaturas ?? []).map((f) => Number(f['#'])).filter(Number.isFinite);
+        this.candidaturas.push({
+          '#': String((nums.length ? Math.max(...nums) : 0) + 1),
+          Date: new Date().toISOString().slice(0, 10),
+          Company: '',
+          Role: '',
+          Score: '—',
+          Status: 'Applied',
+          PDF: '—',
+          Report: '—',
+          Notes: '',
+        });
+        return this._repintarHoja();
+      }
+      if (boton.hasAttribute('data-cand-borrar')) {
+        this.candidaturas.splice(Number(boton.dataset.candBorrar), 1);
+        return this._repintarHoja();
+      }
+      if (boton.hasAttribute('data-cand-guardar')) return this._guardarCandidaturas();
+
       if (boton.hasAttribute('data-guardar')) return this._guardar();
       if (boton.hasAttribute('data-exportar')) return this._exportar();
       if (boton.hasAttribute('data-importar')) return this._importar();
@@ -739,6 +866,23 @@ export class Admin {
     if (ruta === 'contacto.links') return `${dato.label}: ${dato.value || '—'}`;
     if (ruta === 'perfiles') return dato.nombre || 'Sin nombre';
     return '';
+  }
+
+  async _guardarCandidaturas() {
+    const nota = this.caja.querySelector('[data-cand-nota]');
+    if (nota) nota.textContent = 'Guardando…';
+    try {
+      const res = await fetch(RUTA_CANDIDATURAS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filas: this.candidaturas }),
+      });
+      const cuerpo = await res.json();
+      if (!res.ok || !cuerpo.ok) throw new Error(cuerpo.error ?? `HTTP ${res.status}`);
+      if (nota) nota.textContent = `Guardado · ${cuerpo.filas} candidatura(s) · CSV al día`;
+    } catch (e) {
+      if (nota) nota.textContent = `No se ha podido guardar: ${e.message}`;
+    }
   }
 
   _marcarSucio() {

@@ -92,7 +92,11 @@ try {
   // guardados no tiene ni un campo, y eso es correcto. Lo que hay que exigirle
   // es el botón de añadir; los campos aparecen con la primera hoja, y de eso se
   // encarga `perfiles-check`, que crea una y la poda.
-  const deLista = new Set(['perfiles']);
+  // «Candidaturas» además NO edita `contenido.json`: sus datos viven en la
+  // tabla de career-ops, en otro fichero y con otro botón de guardar. Contarle
+  // campos de contenido es medir lo que no tiene — y con el registro vacío
+  // tendría cero legítimamente, igual que «Hojas de vida».
+  const deLista = new Set(['perfiles', 'candidaturas']);
   const vacias = Object.entries(secciones)
     .filter(([id, n]) => n < 3 && !deLista.has(id))
     .map(([id]) => id);
@@ -100,6 +104,24 @@ try {
     Object.entries(secciones).filter(([id]) => !deLista.has(id)).map(([, n]) => n)
   ).size;
   comprobar(vacias.length === 0, 'Cada sección de contenido trae campos', JSON.stringify(secciones));
+
+  // Y a las de lista se les exige lo suyo: que se pueda empezar a llenarlas.
+  const listas = await page.evaluate(async () => {
+    const salida = {};
+    for (const id of ['perfiles', 'candidaturas']) {
+      document.querySelector(`[data-seccion="${id}"]`)?.click();
+      // La de candidaturas lee su fichero: hay que darle tiempo a llegar.
+      await new Promise((r) => setTimeout(r, 900));
+      salida[id] = Boolean(
+        document.querySelector('[data-accion="anadir"]') ||
+          document.querySelector('[data-cand-anadir]')
+      );
+    }
+    return salida;
+  });
+  for (const [id, tiene] of Object.entries(listas)) {
+    comprobar(tiene, `  «${id}» deja empezar a llenarla`);
+  }
   const hayAlta = await page.evaluate(async () => {
     document.querySelector('[data-seccion="perfiles"]').click();
     await new Promise((r) => setTimeout(r, 60));

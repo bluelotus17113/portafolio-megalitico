@@ -581,3 +581,93 @@ body.admin-activo {
   color: #ff9a8b;
   opacity: 1;
 }
+
+/* ── El registro de candidaturas ─────────────────────────────────────────── */
+
+.ad__tablaenv {
+  overflow-x: auto;
+  border: 1px solid var(--ad-linea, #2a3a42);
+  border-radius: 4px;
+}
+
+.ad__tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ad__tabla th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--ad-linea, #2a3a42);
+  white-space: nowrap;
+}
+
+.ad__tabla td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--ad-linea, #2a3a42);
+  vertical-align: middle;
+}
+
+.ad__tabla tr:last-child td { border-bottom: 0; }
+
+/* Los campos de la tabla no llevan el ancho completo de `.ad__campo input`:
+   en una fila de seis columnas eso aplasta cada una hasta lo ilegible. */
+.ad__tabla input,
+.ad__tabla select {
+  width: 100%;
+  min-width: 7rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.ad__tabla input:hover,
+.ad__tabla select:hover { border-color: var(--ad-linea, #2a3a42); }
+
+.ad__tabla input:focus,
+.ad__tabla select:focus {
+  outline: none;
+  border-color: var(--ad-acento, #4fe6d8);
+  background: var(--ad-fondo, #0a1013);
+}
+
+.ad__cnum {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
+  padding-left: 0.6rem !important;
+  white-space: nowrap;
+}
+
+.ad__vacio { opacity: 0.55; padding: 1.2rem 0.6rem !important; }
+
+.ad__quitar {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.4;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.4rem;
+}
+
+.ad__quitar:hover { opacity: 1; color: #ff9a8b; }
+
+.ad__acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+
+.ad__nota { font-size: 0.82rem; opacity: 0.7; }
