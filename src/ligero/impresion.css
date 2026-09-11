@@ -133,7 +133,7 @@
   /* ── Bloques ──────────────────────────────────────────────────────────── */
 
   .cv__bloque {
-    margin-top: 6mm;
+    margin-top: 5.2mm;
   }
 
   .cv__bloque h2 {
@@ -278,7 +278,13 @@
   /* ── Pie ──────────────────────────────────────────────────────────────── */
 
   .cv__pie {
-    margin-top: 7mm;
+    /* 4, no 7. Con 7 el pie no cabía por dos milímetros y se iba solo a una
+       tercera página con treinta y seis caracteres: una hoja entera de papel
+       para una línea. Lo que sobra en un currículo de dos páginas no es el
+       contenido, es el aire de la última pulgada. */
+    margin-top: 4mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
     padding-top: 2.5mm;
     border-top: 0.5pt solid #b8c2c4;
     font-size: 8.5pt;

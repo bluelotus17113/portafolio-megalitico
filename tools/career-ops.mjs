@@ -173,7 +173,7 @@ location:
   # trabaja en su propio país no necesita que nadie le patrocine nada.
   visa_status: ${cita(`Ciudadano de ${pais || 'su país'}; autorizado para trabajar allí sin patrocinio`)}
   authorized_in: [${cita(pais || '')}]
-  # FALSO, no verdadero. Lo tenía al revés y no es un detalle: con `true`,
+  # FALSO, no verdadero. Lo tenía al revés y no es un detalle: en verdadero,
   # career-ops marca cada oferta local como «necesita patrocinio» y las puntúa
   # peor o las descarta. Una casilla mal puesta que descarta ofertas buenas sin
   # decir por qué es peor que un hueco vacío, porque el hueco se ve.
